@@ -130,8 +130,13 @@ export const CardPreview = forwardRef<SVGSVGElement, CardPreviewProps>(({ data, 
     let patternImageUrl = patternFunction(patternColor, patternOpacity);
     const widthMatch = patternImageUrl.match(/width%3D%22(\d+)%22/);
     const heightMatch = patternImageUrl.match(/height%3D%22(\d+)%22/);
-    const width = Number(widthMatch?.[1] ?? 100);
-    const height = Number(heightMatch?.[1] ?? 100);
+    const baseWidth = Number(widthMatch?.[1] ?? 100);
+    const baseHeight = Number(heightMatch?.[1] ?? 100);
+    
+    // 使用可配置的缩放比例，默认为 1.0
+    const scale = config.patternScale ?? 1.0;
+    const width = baseWidth * scale;
+    const height = baseHeight * scale;
 
     patternImageUrl = patternImageUrl
       .replace(/^url\(['"]?/, 'url(')
@@ -153,11 +158,23 @@ export const CardPreview = forwardRef<SVGSVGElement, CardPreviewProps>(({ data, 
     </g>
   );
 
-  // Badge Component
+  // Badge Component - 计算累积偏移量
+  const calculateMinimalOffset = (languages: string[], currentIndex: number): number => {
+    let offset = 0;
+    for (let i = 0; i < currentIndex; i++) {
+      // 估算文本宽度：每个字符约 10.8px (fontSize 18 * 0.6)
+      const textWidth = languages[i].length * 10.8;
+      // 圆点 + 间距 + 文本 + 右边距
+      offset += 10 + 15 + textWidth + 30;
+    }
+    return offset;
+  };
+
   const TechBadge = ({ lang, index }: { lang: string, index: number }) => {
-     const xOffset = index * 140;
+     let xOffset: number;
      
      if (config.badgeStyle === BadgeStyle.Minimal) {
+         xOffset = calculateMinimalOffset(data.languages, index);
          return (
             <g transform={`translate(${xOffset}, 0)`}>
                 <circle cx="10" cy="20" r="6" fill={accentColor} />
@@ -165,6 +182,8 @@ export const CardPreview = forwardRef<SVGSVGElement, CardPreviewProps>(({ data, 
             </g>
          );
      }
+     
+     xOffset = index * 140;
      
      if (config.badgeStyle === BadgeStyle.Outline) {
          return (

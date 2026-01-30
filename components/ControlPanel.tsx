@@ -121,6 +121,25 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ config, setConfig, o
              </button>
            ))}
         </div>
+        
+        {/* Pattern Scale Slider */}
+        {config.pattern !== PatternType.None && (
+          <div className="space-y-2 pt-2">
+            <div className="flex items-center justify-between text-xs text-zinc-500">
+              <span>Pattern Scale</span>
+              <span>{config.patternScale.toFixed(1)}x</span>
+            </div>
+            <input
+              type="range"
+              min={0.5}
+              max={3.0}
+              step={0.1}
+              value={config.patternScale}
+              onChange={(e) => handleChange('patternScale', Number(e.target.value))}
+              className="w-full"
+            />
+          </div>
+        )}
       </div>
 
       {/* Custom Logo Upload */}

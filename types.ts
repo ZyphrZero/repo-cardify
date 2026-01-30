@@ -55,6 +55,7 @@ export interface CardConfig {
   theme: ThemeType;
   font: FontType;
   pattern: PatternType;
+  patternScale: number; // 图案缩放比例 (0.5 - 3.0)
   badgeStyle: BadgeStyle;
   avatarBackground: AvatarBackgroundType;
   avatarRadius: number;

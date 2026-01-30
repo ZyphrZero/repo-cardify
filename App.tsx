@@ -11,6 +11,7 @@ const INITIAL_CONFIG: CardConfig = {
   theme: ThemeType.Gradient,
   font: FontType.Inter,
   pattern: PatternType.None,
+  patternScale: 1.0, // 默认 1.0x 缩放
   badgeStyle: BadgeStyle.Pill,
   avatarBackground: AvatarBackgroundType.Rounded,
   avatarRadius: 24,
