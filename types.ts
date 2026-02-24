@@ -23,6 +23,7 @@ export type PatternId =
 export type BadgeStyleId = "pill" | "outline" | "minimal";
 export type AvatarShapeId = "none" | "circle" | "rounded";
 export type StatsValueFormatId = "compact" | "full";
+export type StatsStyleId = "card" | "split";
 export type LayoutBlockId =
   | "avatar"
   | "title"
@@ -92,6 +93,11 @@ export const STATS_VALUE_FORMAT_OPTIONS: Array<{
   { id: "full", label: "Full" },
 ];
 
+export const STATS_STYLE_OPTIONS: Array<{ id: StatsStyleId; label: string }> = [
+  { id: "card", label: "Glass" },
+  { id: "split", label: "Split" },
+];
+
 export const LAYOUT_BLOCK_LABELS: Record<LayoutBlockId, string> = {
   avatar: "Avatar",
   title: "Title",
@@ -156,9 +162,13 @@ export interface StatsConfig {
   showForks: boolean;
   showIssues: boolean;
   valueFormat: StatsValueFormatId;
+  style: StatsStyleId;
   itemWidth: number;
   itemHeight: number;
   gap: number;
+  valueSize: number;
+  labelSize: number;
+  splitRatio: number;
 }
 
 export interface TextConfig {
@@ -237,9 +247,13 @@ export const createDefaultCardConfig = (): CardConfig => ({
     showForks: true,
     showIssues: true,
     valueFormat: "full",
+    style: "card",
     itemWidth: 140,
     itemHeight: 60,
     gap: 20,
+    valueSize: 20,
+    labelSize: 12,
+    splitRatio: 0.55,
   },
   text: {
     showOwner: true,

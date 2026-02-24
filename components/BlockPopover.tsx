@@ -4,11 +4,12 @@ import {
   BADGE_STYLE_OPTIONS,
   CardConfig,
   LayoutBlockId,
+  STATS_STYLE_OPTIONS,
   STATS_VALUE_FORMAT_OPTIONS,
   createDefaultCardConfig,
 } from '../types';
 import { useI18n } from './I18nContext';
-import { NumberInput, SectionHeader, SelectInput } from './SharedInputs';
+import { NumberInput, SectionHeader, SelectInput, SliderInput } from './SharedInputs';
 
 interface BlockPopoverProps {
   block: LayoutBlockId;
@@ -202,6 +203,20 @@ const StatsContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<Rea
         }))
       }
     />
+    <SelectInput
+      label={messages.controlPanel.labels.statsStyle}
+      value={config.stats.style}
+      options={STATS_STYLE_OPTIONS.map((option) => ({
+        value: option.id,
+        label: messages.options.statsStyle[option.id],
+      }))}
+      onChange={(v) =>
+        setConfig((prev) => ({
+          ...prev,
+          stats: { ...prev.stats, style: v as CardConfig['stats']['style'] },
+        }))
+      }
+    />
     <NumberInput
       label={messages.controlPanel.labels.gap}
       value={config.stats.gap}
@@ -223,6 +238,30 @@ const StatsContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<Rea
       max={120}
       onChange={(v) => setConfig((prev) => ({ ...prev, stats: { ...prev.stats, itemHeight: v } }))}
     />
+    <NumberInput
+      label={messages.controlPanel.labels.valueSize}
+      value={config.stats.valueSize}
+      min={12}
+      max={48}
+      onChange={(v) => setConfig((prev) => ({ ...prev, stats: { ...prev.stats, valueSize: v } }))}
+    />
+    <NumberInput
+      label={messages.controlPanel.labels.labelSize}
+      value={config.stats.labelSize}
+      min={8}
+      max={32}
+      onChange={(v) => setConfig((prev) => ({ ...prev, stats: { ...prev.stats, labelSize: v } }))}
+    />
+    {config.stats.style === 'split' && (
+      <SliderInput
+        label={messages.controlPanel.labels.splitRatio}
+        value={config.stats.splitRatio}
+        min={0.3}
+        max={0.8}
+        step={0.01}
+        onChange={(v) => setConfig((prev) => ({ ...prev, stats: { ...prev.stats, splitRatio: v } }))}
+      />
+    )}
   </div>
 );
 

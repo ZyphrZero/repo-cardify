@@ -1,4 +1,13 @@
-import type { AvatarShapeId, BadgeStyleId, FontId, LayoutBlockId, PatternId, StatsValueFormatId, ThemeId } from './types';
+import type {
+  AvatarShapeId,
+  BadgeStyleId,
+  FontId,
+  LayoutBlockId,
+  PatternId,
+  StatsStyleId,
+  StatsValueFormatId,
+  ThemeId,
+} from './types';
 
 export type UiThemeMode = 'system' | 'light' | 'dark';
 export type Locale = 'en' | 'zh-CN';
@@ -92,6 +101,10 @@ interface LocaleMessages {
       itemWidth: string;
       itemHeight: string;
       statsValueFormat: string;
+      statsStyle: string;
+      valueSize: string;
+      labelSize: string;
+      splitRatio: string;
       importPreset: string;
       exportPreset: string;
     };
@@ -123,6 +136,7 @@ interface LocaleMessages {
     avatarShape: Record<AvatarShapeId, string>;
     badgeStyle: Record<BadgeStyleId, string>;
     statsValueFormat: Record<StatsValueFormatId, string>;
+    statsStyle: Record<StatsStyleId, string>;
     layoutBlock: Record<LayoutBlockId, string>;
     alignAction: Record<AlignAction, string>;
     distributeAxis: Record<DistributeAxis, string>;
@@ -218,6 +232,10 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
         itemWidth: 'Item Width',
         itemHeight: 'Item Height',
         statsValueFormat: 'Number Format',
+        statsStyle: 'Stats Style',
+        valueSize: 'Value Size',
+        labelSize: 'Label Size',
+        splitRatio: 'Split Ratio',
         importPreset: 'Import Preset',
         exportPreset: 'Export JSON Preset',
       },
@@ -287,8 +305,12 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
         minimal: 'Minimal',
       },
       statsValueFormat: {
-        compact: 'Compact (21.1k)',
-        full: 'Full (21100)',
+        compact: 'Compact (1.2k)',
+        full: 'Full (1234)',
+      },
+      statsStyle: {
+        card: 'Glass',
+        split: 'Split Badge',
       },
       layoutBlock: {
         avatar: 'Avatar',
@@ -399,6 +421,10 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
         itemWidth: '单项宽度',
         itemHeight: '单项高度',
         statsValueFormat: '数字格式',
+        statsStyle: '统计样式',
+        valueSize: '数值大小',
+        labelSize: '标签大小',
+        splitRatio: '分隔比例',
         importPreset: '导入预设',
         exportPreset: '导出 JSON 预设',
       },
@@ -468,8 +494,12 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
         minimal: '极简',
       },
       statsValueFormat: {
-        compact: '简写 (21.1k)',
-        full: '完整 (21100)',
+        compact: '简写 (1.2k)',
+        full: '完整 (1234)',
+      },
+      statsStyle: {
+        card: '高级玻璃',
+        split: '分段徽章',
       },
       layoutBlock: {
         avatar: '头像',

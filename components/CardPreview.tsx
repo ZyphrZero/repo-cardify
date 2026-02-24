@@ -35,6 +35,36 @@ interface ThemeTokens {
   patternColor: string;
 }
 
+const SPLIT_STAT_VALUE_BG: Record<'stars' | 'forks' | 'issues', string> = {
+  stars: '#c28d12',
+  forks: '#2e9b47',
+  issues: '#1a7fc5',
+};
+
+const SPLIT_STAT_VALUE_TEXT: Record<'stars' | 'forks' | 'issues', string> = {
+  stars: '#ffffff',
+  forks: '#ffffff',
+  issues: '#ffffff',
+};
+
+const CARD_STAT_GLASS_TINT: Record<'stars' | 'forks' | 'issues', string> = {
+  stars: '#fbbf24',
+  forks: '#34d399',
+  issues: '#60a5fa',
+};
+
+interface GlassStatProfile {
+  baseTopOpacity: number;
+  baseMidOpacity: number;
+  baseBottomOpacity: number;
+  glowOpacity: number;
+  sheenOpacity: number;
+  edgeTopOpacity: number;
+  edgeBottomOpacity: number;
+  shadowOpacity: number;
+  liftOpacity: number;
+}
+
 const patternFunctions: Partial<Record<PatternId, (color: string, opacity: number) => string>> = {
   signal,
   'charlie-brown': charlieBrown,
@@ -55,18 +85,13 @@ const COMPACT_NUMBER_UNITS = [
   { value: 1_000, suffix: 'k' },
 ] as const;
 
-const trimTrailingZeros = (value: string) =>
-  value.replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1');
-
 const formatCompactNumber = (value: number) => {
   const absValue = Math.abs(value);
 
   for (const unit of COMPACT_NUMBER_UNITS) {
     if (absValue >= unit.value) {
       const scaled = value / unit.value;
-      const absScaled = Math.abs(scaled);
-      const decimals = absScaled >= 100 ? 0 : absScaled >= 10 ? 1 : 2;
-      return `${trimTrailingZeros(scaled.toFixed(decimals))}${unit.suffix}`;
+      return `${scaled.toFixed(1)}${unit.suffix}`;
     }
   }
 
@@ -202,6 +227,91 @@ const getThemeTokens = (theme: ThemeId, background: string): ThemeTokens => {
   };
 };
 
+const getGlassStatProfile = (theme: ThemeId, background: string): GlassStatProfile => {
+  if (theme === 'simple') {
+    return {
+      baseTopOpacity: 0.72,
+      baseMidOpacity: 0.44,
+      baseBottomOpacity: 0.24,
+      glowOpacity: 0.26,
+      sheenOpacity: 0.6,
+      edgeTopOpacity: 0.7,
+      edgeBottomOpacity: 0.24,
+      shadowOpacity: 0.1,
+      liftOpacity: 0.32,
+    };
+  }
+
+  if (theme === 'solid') {
+    const isLight = getContrastColor(background) === '#18181b';
+    if (isLight) {
+      return {
+        baseTopOpacity: 0.64,
+        baseMidOpacity: 0.36,
+        baseBottomOpacity: 0.22,
+        glowOpacity: 0.24,
+        sheenOpacity: 0.54,
+        edgeTopOpacity: 0.62,
+        edgeBottomOpacity: 0.22,
+        shadowOpacity: 0.14,
+        liftOpacity: 0.28,
+      };
+    }
+
+    return {
+      baseTopOpacity: 0.34,
+      baseMidOpacity: 0.2,
+      baseBottomOpacity: 0.16,
+      glowOpacity: 0.18,
+      sheenOpacity: 0.38,
+      edgeTopOpacity: 0.52,
+      edgeBottomOpacity: 0.15,
+      shadowOpacity: 0.26,
+      liftOpacity: 0.18,
+    };
+  }
+
+  if (theme === 'dark') {
+    return {
+      baseTopOpacity: 0.3,
+      baseMidOpacity: 0.2,
+      baseBottomOpacity: 0.16,
+      glowOpacity: 0.18,
+      sheenOpacity: 0.34,
+      edgeTopOpacity: 0.48,
+      edgeBottomOpacity: 0.16,
+      shadowOpacity: 0.28,
+      liftOpacity: 0.14,
+    };
+  }
+
+  return {
+    baseTopOpacity: 0.42,
+    baseMidOpacity: 0.24,
+    baseBottomOpacity: 0.18,
+    glowOpacity: 0.2,
+    sheenOpacity: 0.42,
+    edgeTopOpacity: 0.56,
+    edgeBottomOpacity: 0.2,
+    shadowOpacity: 0.22,
+    liftOpacity: 0.2,
+  };
+};
+
+const getSplitStatLabelBg = (theme: ThemeId, background: string) => {
+  if (theme === 'simple') {
+    return '#3f3f46';
+  }
+
+  if (theme === 'solid') {
+    return getContrastColor(background) === '#18181b'
+      ? 'rgba(24,24,27,0.72)'
+      : 'rgba(0,0,0,0.38)';
+  }
+
+  return 'rgba(24,24,27,0.64)';
+};
+
 const extractPatternData = (patternUrl: string) => {
   const raw = patternUrl.replace(/^url\((['"]?)/, '').replace(/(['"]?)\)$/, '');
   const widthMatch = raw.match(/width%3D%22(\d+)%22/);
@@ -228,6 +338,8 @@ export const CardPreview = forwardRef<SVGSVGElement, CardPreviewProps>(({ data, 
       : null;
 
   const visibleStats = getVisibleStats(config, data);
+  const splitStatLabelBg = getSplitStatLabelBg(config.theme, config.colors.background);
+  const glassStatProfile = getGlassStatProfile(config.theme, config.colors.background);
 
   const titleText = config.text.customTitle || data.name;
   const descriptionText = config.text.customDescription || data.description || messages.app.noDescription;
@@ -387,36 +499,205 @@ export const CardPreview = forwardRef<SVGSVGElement, CardPreviewProps>(({ data, 
         <g transform={`translate(${config.layout.stats.x}, ${config.layout.stats.y})`}>
           {visibleStats.map((stat, index) => {
             const x = index * (config.stats.itemWidth + config.stats.gap);
-            const valueSize = Math.max(18, Math.round(config.stats.itemHeight * 0.36));
-            const labelSize = Math.max(12, Math.round(config.stats.itemHeight * 0.22));
+            if (config.stats.style === 'split') {
+              const dividerX = Math.round(config.stats.itemWidth * config.stats.splitRatio);
+              const splitRadius = Math.min(12, config.stats.itemHeight / 2);
+              const clipId = `stat-split-clip-${stat.key}-${index}`;
+              const splitValueBg = SPLIT_STAT_VALUE_BG[stat.key];
+              const splitValueText = SPLIT_STAT_VALUE_TEXT[stat.key];
+              const splitValueSize = config.stats.valueSize;
+              const splitLabelSize = config.stats.labelSize;
+              return (
+                <g key={stat.key} transform={`translate(${x}, 0)`}>
+                  <defs>
+                    <clipPath id={clipId}>
+                      <rect
+                        x="0"
+                        y="0"
+                        width={config.stats.itemWidth}
+                        height={config.stats.itemHeight}
+                        rx={splitRadius}
+                      />
+                    </clipPath>
+                  </defs>
+                  <rect
+                    x="0"
+                    y="0"
+                    width={config.stats.itemWidth}
+                    height={config.stats.itemHeight}
+                    rx={splitRadius}
+                    fill={splitStatLabelBg}
+                    stroke={tokens.cardBorder}
+                  />
+                  <rect
+                    x={dividerX}
+                    y="0"
+                    width={config.stats.itemWidth - dividerX}
+                    height={config.stats.itemHeight}
+                    fill={splitValueBg}
+                    clipPath={`url(#${clipId})`}
+                  />
+                  <line
+                    x1={dividerX}
+                    y1="0"
+                    x2={dividerX}
+                    y2={config.stats.itemHeight}
+                    stroke={tokens.cardBorder}
+                    strokeOpacity={0.7}
+                  />
+                  <text
+                    x={dividerX / 2}
+                    y={config.stats.itemHeight / 2 + splitLabelSize * 0.36}
+                    fill="#ffffff"
+                    fontFamily={fontFamily}
+                    fontSize={splitLabelSize}
+                    fontWeight="700"
+                    letterSpacing={0.6}
+                    textAnchor="middle"
+                  >
+                    {messages.card[stat.key]}
+                  </text>
+                  <text
+                    x={dividerX + (config.stats.itemWidth - dividerX) / 2}
+                    y={config.stats.itemHeight / 2 + splitValueSize * 0.35}
+                    fill={splitValueText}
+                    fontFamily={fontFamily}
+                    fontSize={splitValueSize}
+                    fontWeight="800"
+                    textAnchor="middle"
+                  >
+                    {formatStatValue(stat.value, config.stats.valueFormat)}
+                  </text>
+                </g>
+              );
+            }
+
+            const valueSize = clamp(config.stats.valueSize, 12, 48);
+            const labelSize = clamp(config.stats.labelSize, 8, 32);
+            const statRadius = Math.min(14, config.stats.itemHeight / 2);
+            const statTint = CARD_STAT_GLASS_TINT[stat.key];
+            const clipId = `stat-glass-clip-${stat.key}-${index}`;
+            const baseGradientId = `stat-glass-base-${stat.key}-${index}`;
+            const glowGradientId = `stat-glass-glow-${stat.key}-${index}`;
+            const sheenGradientId = `stat-glass-sheen-${stat.key}-${index}`;
+            const edgeGradientId = `stat-glass-edge-${stat.key}-${index}`;
+            const shadowFilterId = `stat-glass-shadow-${stat.key}-${index}`;
+            const topSheenHeight = Math.max(12, config.stats.itemHeight * 0.48);
+            const glowHighlightOpacity = Math.min(glassStatProfile.glowOpacity + 0.2, 0.78);
             return (
               <g key={stat.key} transform={`translate(${x}, 0)`}>
-                <rect
-                  x="0"
-                  y="0"
-                  width={config.stats.itemWidth}
-                  height={config.stats.itemHeight}
-                  rx={Math.min(14, config.stats.itemHeight / 2)}
-                  fill={tokens.cardBg}
-                  stroke={tokens.cardBorder}
-                />
+                <defs>
+                  <clipPath id={clipId}>
+                    <rect
+                      x="0"
+                      y="0"
+                      width={config.stats.itemWidth}
+                      height={config.stats.itemHeight}
+                      rx={statRadius}
+                    />
+                  </clipPath>
+                  <linearGradient id={baseGradientId} x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#ffffff" stopOpacity={glassStatProfile.baseTopOpacity} />
+                    <stop offset="58%" stopColor="#ffffff" stopOpacity={glassStatProfile.baseMidOpacity} />
+                    <stop offset="100%" stopColor={statTint} stopOpacity={glassStatProfile.baseBottomOpacity} />
+                  </linearGradient>
+                  <radialGradient id={glowGradientId} cx="16%" cy="0%" r="125%">
+                    <stop offset="0%" stopColor="#ffffff" stopOpacity={glowHighlightOpacity} />
+                    <stop offset="38%" stopColor={statTint} stopOpacity={glassStatProfile.glowOpacity} />
+                    <stop offset="100%" stopColor={statTint} stopOpacity={0} />
+                  </radialGradient>
+                  <linearGradient id={sheenGradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#ffffff" stopOpacity={glassStatProfile.sheenOpacity} />
+                    <stop offset="56%" stopColor="#ffffff" stopOpacity={glassStatProfile.sheenOpacity * 0.32} />
+                    <stop offset="100%" stopColor="#ffffff" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id={edgeGradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#ffffff" stopOpacity={glassStatProfile.edgeTopOpacity} />
+                    <stop offset="100%" stopColor="#ffffff" stopOpacity={glassStatProfile.edgeBottomOpacity} />
+                  </linearGradient>
+                  <filter id={shadowFilterId} x="-24%" y="-44%" width="148%" height="188%">
+                    <feDropShadow
+                      dx="0"
+                      dy="10"
+                      stdDeviation="10"
+                      floodColor="#020617"
+                      floodOpacity={glassStatProfile.shadowOpacity}
+                    />
+                    <feDropShadow
+                      dx="0"
+                      dy="1"
+                      stdDeviation="1.4"
+                      floodColor="#ffffff"
+                      floodOpacity={glassStatProfile.liftOpacity}
+                    />
+                  </filter>
+                </defs>
+                <g filter={`url(#${shadowFilterId})`}>
+                  <rect
+                    x="0"
+                    y="0"
+                    width={config.stats.itemWidth}
+                    height={config.stats.itemHeight}
+                    rx={statRadius}
+                    fill={`url(#${baseGradientId})`}
+                    stroke={tokens.cardBorder}
+                    strokeOpacity={0.46}
+                  />
+                  <rect
+                    x="0"
+                    y="0"
+                    width={config.stats.itemWidth}
+                    height={config.stats.itemHeight}
+                    fill={`url(#${glowGradientId})`}
+                    clipPath={`url(#${clipId})`}
+                  />
+                  <rect
+                    x={1.5}
+                    y={1.5}
+                    width={Math.max(2, config.stats.itemWidth - 3)}
+                    height={Math.max(8, topSheenHeight)}
+                    rx={Math.max(4, statRadius - 1.5)}
+                    fill={`url(#${sheenGradientId})`}
+                    clipPath={`url(#${clipId})`}
+                  />
+                  <rect
+                    x={0.5}
+                    y={0.5}
+                    width={Math.max(2, config.stats.itemWidth - 1)}
+                    height={Math.max(2, config.stats.itemHeight - 1)}
+                    rx={Math.max(4, statRadius - 0.5)}
+                    fill="none"
+                    stroke={`url(#${edgeGradientId})`}
+                  />
+                  <line
+                    x1={Math.max(10, statRadius)}
+                    y1={config.stats.itemHeight - 1.2}
+                    x2={config.stats.itemWidth - Math.max(10, statRadius)}
+                    y2={config.stats.itemHeight - 1.2}
+                    stroke="#ffffff"
+                    strokeOpacity={glassStatProfile.edgeBottomOpacity}
+                    strokeLinecap="round"
+                  />
+                </g>
                 <text
                   x={config.stats.itemWidth / 2}
-                  y={config.stats.itemHeight / 2 - 2}
+                  y={config.stats.itemHeight / 2 + valueSize * 0.2 - 8}
                   fill={tokens.primaryText}
                   fontFamily={fontFamily}
                   fontSize={valueSize}
-                  fontWeight="700"
+                  fontWeight="800"
                   textAnchor="middle"
                 >
                   {formatStatValue(stat.value, config.stats.valueFormat)}
                 </text>
                 <text
                   x={config.stats.itemWidth / 2}
-                  y={config.stats.itemHeight - 10}
+                  y={config.stats.itemHeight - Math.max(8, labelSize * 0.75)}
                   fill={tokens.secondaryText}
                   fontFamily={fontFamily}
                   fontSize={labelSize}
+                  fontWeight="600"
+                  letterSpacing={0.4}
                   textAnchor="middle"
                 >
                   {messages.card[stat.key]}

@@ -4,6 +4,7 @@ import {
   CardConfig,
   FONT_OPTIONS,
   PATTERN_OPTIONS,
+  STATS_STYLE_OPTIONS,
   STATS_VALUE_FORMAT_OPTIONS,
   THEME_OPTIONS,
   createDefaultCardConfig,
@@ -89,9 +90,13 @@ export const sanitizeCardConfig = (input: unknown): CardConfig | null => {
         STATS_VALUE_FORMAT_OPTIONS,
         defaults.stats.valueFormat
       ),
+      style: pickOptionValue(stats.style, STATS_STYLE_OPTIONS, defaults.stats.style),
       itemWidth: isNumber(stats.itemWidth) ? clamp(stats.itemWidth, 80, 320) : defaults.stats.itemWidth,
       itemHeight: isNumber(stats.itemHeight) ? clamp(stats.itemHeight, 40, 140) : defaults.stats.itemHeight,
       gap: isNumber(stats.gap) ? clamp(stats.gap, 0, 120) : defaults.stats.gap,
+      valueSize: isNumber(stats.valueSize) ? clamp(stats.valueSize, 12, 48) : defaults.stats.valueSize,
+      labelSize: isNumber(stats.labelSize) ? clamp(stats.labelSize, 8, 32) : defaults.stats.labelSize,
+      splitRatio: isNumber(stats.splitRatio) ? clamp(stats.splitRatio, 0.3, 0.8) : defaults.stats.splitRatio,
     },
     text: {
       showOwner: isBoolean(text.showOwner) ? text.showOwner : defaults.text.showOwner,
