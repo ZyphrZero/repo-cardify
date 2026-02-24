@@ -6,6 +6,11 @@ import { I18nProvider } from './components/I18nContext';
 import { EditorCanvas } from './components/EditorCanvas';
 import { ControlPanel } from './components/ControlPanel';
 import { Locale, UiThemeMode, detectLocale, getLocaleMessages, isLocale } from './i18n';
+import {
+  buildEmbeddedFontCss,
+  injectEmbeddedFontStyle,
+  normalizeSvgFontFaces,
+} from './services/exportFontService';
 import { fetchRepoDetails } from './services/githubService';
 import { exportConfigPreset, importConfigPreset } from './services/presetService';
 import { CardConfig, LayoutBlockId, RepoData, createDefaultCardConfig } from './types';
@@ -166,6 +171,10 @@ export default function App() {
       source = source.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
     }
 
+    source = normalizeSvgFontFaces(source);
+    const embeddedFontCss = await buildEmbeddedFontCss(config.font);
+    source = injectEmbeddedFontStyle(source, embeddedFontCss);
+
     if (repoData?.avatarUrl) {
       const base64Avatar = await urlToBase64(repoData.avatarUrl);
       if (base64Avatar.startsWith('data:')) {
@@ -174,7 +183,7 @@ export default function App() {
     }
 
     return source;
-  }, [repoData]);
+  }, [config.font, repoData]);
 
   const downloadSvg = useCallback(async () => {
     setLoading(true);

@@ -14,13 +14,13 @@ import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
   CardConfig,
-  FontId,
   PatternId,
   RepoData,
   ThemeId,
 } from '../types';
+import { getPreviewFontFamily } from '../services/exportFontService';
 import { useI18n } from './I18nContext';
-import { getBadgeOffsets, getBadgeWidth, getVisibleStats } from './cardMetrics';
+import { estimateTextWidth, getBadgeOffsets, getBadgeWidth, getVisibleStats } from './cardMetrics';
 
 interface CardPreviewProps {
   data: RepoData;
@@ -35,15 +35,6 @@ interface ThemeTokens {
   patternColor: string;
 }
 
-const FONT_FAMILY_MAP: Record<FontId, string> = {
-  inter: "'Inter', sans-serif",
-  mono: "'JetBrains Mono', monospace",
-  serif: "'Merriweather', serif",
-  poppins: "'Poppins', sans-serif",
-  playfair: "'Playfair Display', serif",
-  oswald: "'Oswald', sans-serif",
-};
-
 const patternFunctions: Partial<Record<PatternId, (color: string, opacity: number) => string>> = {
   signal,
   'charlie-brown': charlieBrown,
@@ -57,6 +48,76 @@ const patternFunctions: Partial<Record<PatternId, (color: string, opacity: numbe
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const appendEllipsis = (line: string, maxWidth: number, fontSize: number) => {
+  let value = line.trimEnd();
+  if (!value) return '...';
+  while (value.length > 0 && estimateTextWidth(`${value}...`, fontSize) > maxWidth) {
+    value = value.slice(0, -1);
+  }
+  return value ? `${value}...` : '...';
+};
+
+const buildDescriptionLines = (text: string, maxWidth: number, fontSize: number, maxLines: number): string[] => {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (!normalized) return [];
+
+  const lines: string[] = [];
+  let current = '';
+  const pushLine = (line: string) => {
+    if (line) lines.push(line);
+  };
+
+  const rawTokens = normalized.includes(' ') ? normalized.split(' ') : Array.from(normalized);
+  const useSpaces = normalized.includes(' ');
+
+  for (const token of rawTokens) {
+    const next = current ? `${current}${useSpaces ? ' ' : ''}${token}` : token;
+    if (estimateTextWidth(next, fontSize) <= maxWidth) {
+      current = next;
+      continue;
+    }
+
+    if (current) {
+      pushLine(current);
+      current = token;
+    } else {
+      let chunk = '';
+      for (const char of Array.from(token)) {
+        const candidate = `${chunk}${char}`;
+        if (estimateTextWidth(candidate, fontSize) <= maxWidth) {
+          chunk = candidate;
+        } else {
+          pushLine(chunk);
+          chunk = char;
+        }
+
+        if (lines.length >= maxLines) {
+          lines[maxLines - 1] = appendEllipsis(lines[maxLines - 1], maxWidth, fontSize);
+          return lines.slice(0, maxLines);
+        }
+      }
+      current = chunk;
+    }
+
+    if (lines.length >= maxLines) {
+      lines[maxLines - 1] = appendEllipsis(lines[maxLines - 1], maxWidth, fontSize);
+      return lines.slice(0, maxLines);
+    }
+  }
+
+  if (current) {
+    pushLine(current);
+  }
+
+  if (lines.length > maxLines) {
+    const trimmed = lines.slice(0, maxLines);
+    trimmed[maxLines - 1] = appendEllipsis(trimmed[maxLines - 1], maxWidth, fontSize);
+    return trimmed;
+  }
+
+  return lines;
+};
 
 const getContrastColor = (hex: string) => {
   const value = hex.replace('#', '');
@@ -127,7 +188,7 @@ export const CardPreview = forwardRef<SVGSVGElement, CardPreviewProps>(({ data, 
   const width = CANVAS_WIDTH;
   const height = CANVAS_HEIGHT;
   const tokens = getThemeTokens(config.theme, config.colors.background);
-  const fontFamily = FONT_FAMILY_MAP[config.font];
+  const fontFamily = getPreviewFontFamily(config.font);
 
   const patternFunction = patternFunctions[config.pattern.id];
   const patternData =
@@ -139,6 +200,13 @@ export const CardPreview = forwardRef<SVGSVGElement, CardPreviewProps>(({ data, 
 
   const titleText = config.text.customTitle || data.name;
   const descriptionText = config.text.customDescription || data.description || messages.app.noDescription;
+  const descriptionLines = buildDescriptionLines(
+    descriptionText,
+    config.layout.description.w,
+    config.text.descriptionSize,
+    3
+  );
+  const descriptionLineHeight = config.text.descriptionSize * 1.35;
 
   const badgeOffsets = getBadgeOffsets(data.languages, config.badge);
 
@@ -186,14 +254,6 @@ export const CardPreview = forwardRef<SVGSVGElement, CardPreviewProps>(({ data, 
       xmlns="http://www.w3.org/2000/svg"
       xmlnsXlink="http://www.w3.org/1999/xlink"
     >
-      <defs>
-        <style type="text/css">
-          {`
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&family=Merriweather:wght@400;700&family=Oswald:wght@500;700&family=Playfair+Display:wght@600;800&family=Poppins:wght@400;600;800&display=swap');
-          `}
-        </style>
-      </defs>
-
       {renderBackground()}
 
       {patternData && (
@@ -271,32 +331,26 @@ export const CardPreview = forwardRef<SVGSVGElement, CardPreviewProps>(({ data, 
         </text>
       </g>
 
-      <foreignObject
-        x={config.layout.description.x}
-        y={config.layout.description.y}
-        width={config.layout.description.w}
-        height={config.layout.description.h}
-      >
-        <div
-          {...({ xmlns: 'http://www.w3.org/1999/xhtml' } as any)}
-          style={{
-            fontFamily,
-            color: tokens.secondaryText,
-            fontSize: `${config.text.descriptionSize}px`,
-            lineHeight: '1.35',
-            fontWeight: 400,
-            display: '-webkit-box',
-            WebkitLineClamp: 3,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            width: '100%',
-            height: '100%',
-          }}
+      {descriptionLines.length > 0 && (
+        <text
+          x={config.layout.description.x}
+          y={config.layout.description.y + config.text.descriptionSize}
+          fill={tokens.secondaryText}
+          fontFamily={fontFamily}
+          fontSize={config.text.descriptionSize}
+          fontWeight="400"
         >
-          {descriptionText}
-        </div>
-      </foreignObject>
+          {descriptionLines.map((line, index) => (
+            <tspan
+              key={`${index}-${line}`}
+              x={config.layout.description.x}
+              dy={index === 0 ? 0 : descriptionLineHeight}
+            >
+              {line}
+            </tspan>
+          ))}
+        </text>
+      )}
 
       {visibleStats.length > 0 && (
         <g transform={`translate(${config.layout.stats.x}, ${config.layout.stats.y})`}>
