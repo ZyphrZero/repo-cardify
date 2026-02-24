@@ -5,12 +5,10 @@ import { Download, Github, Layers, Layout } from 'lucide-react';
 import { I18nProvider } from './components/I18nContext';
 import { EditorCanvas } from './components/EditorCanvas';
 import { ControlPanel } from './components/ControlPanel';
-import { getInteractiveLayoutRects } from './components/cardMetrics';
-import { AlignAction, DistributeAxis, alignSelectedBlocks, distributeSelectedBlocks } from './components/layoutTransforms';
 import { Locale, UiThemeMode, detectLocale, getLocaleMessages, isLocale } from './i18n';
 import { fetchRepoDetails } from './services/githubService';
 import { exportConfigPreset, importConfigPreset } from './services/presetService';
-import { CardConfig, LayoutBlockId, RepoData, createDefaultCardConfig, createDefaultLayout } from './types';
+import { CardConfig, LayoutBlockId, RepoData, createDefaultCardConfig } from './types';
 
 type ResolvedUiTheme = 'light' | 'dark';
 
@@ -19,9 +17,9 @@ const LOCALE_STORAGE_KEY = 'repo-cardify-locale';
 
 const normalizeSelection = (blocks: LayoutBlockId[], primary?: LayoutBlockId): LayoutBlockId[] => {
   const unique = Array.from(new Set(blocks));
-  const fallback: LayoutBlockId[] = unique.length > 0 ? unique : ['title'];
-  const primaryBlock = primary && fallback.includes(primary) ? primary : fallback[0];
-  return [primaryBlock, ...fallback.filter((block) => block !== primaryBlock)];
+  if (unique.length === 0) return [];
+  const primaryBlock = primary && unique.includes(primary) ? primary : unique[0];
+  return [primaryBlock, ...unique.filter((block) => block !== primaryBlock)];
 };
 
 const isUiThemeMode = (value: string): value is UiThemeMode =>
@@ -39,7 +37,7 @@ export default function App() {
   const [systemPrefersDark, setSystemPrefersDark] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  const primaryBlock = selectedBlocks[0] ?? 'title';
+  const primaryBlock: LayoutBlockId | null = selectedBlocks[0] ?? null;
   const resolvedUiTheme: ResolvedUiTheme = uiThemeMode === 'system' ? (systemPrefersDark ? 'dark' : 'light') : uiThemeMode;
   const messages = getLocaleMessages(locale);
 
@@ -136,24 +134,6 @@ export default function App() {
     }
   };
 
-  const runAlignment = (action: AlignAction) => {
-    if (!repoData || selectedBlocks.length < 2) return;
-
-    setConfig((prev) => {
-      const rects = getInteractiveLayoutRects(prev, repoData);
-      return alignSelectedBlocks(prev, selectedBlocks, rects, action);
-    });
-  };
-
-  const runDistribution = (axis: DistributeAxis) => {
-    if (!repoData || selectedBlocks.length < 3) return;
-
-    setConfig((prev) => {
-      const rects = getInteractiveLayoutRects(prev, repoData);
-      return distributeSelectedBlocks(prev, selectedBlocks, rects, axis);
-    });
-  };
-
   const urlToBase64 = async (url: string): Promise<string> => {
     try {
       let response = await fetch(url);
@@ -173,28 +153,56 @@ export default function App() {
     }
   };
 
-  const downloadImage = useCallback(async () => {
-    if (!svgRef.current) return;
+  const serializeSvg = useCallback(async () => {
+    if (!svgRef.current) return null;
 
+    const serializer = new XMLSerializer();
+    let source = serializer.serializeToString(svgRef.current);
+
+    if (!source.match(/^<svg[^>]+xmlns="http:\/\/www\.w3\.org\/2000\/svg"/)) {
+      source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+    }
+    if (!source.match(/^<svg[^>]+xmlns:xlink="http:\/\/www\.w3\.org\/1999\/xlink"/)) {
+      source = source.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
+    }
+
+    if (repoData?.avatarUrl) {
+      const base64Avatar = await urlToBase64(repoData.avatarUrl);
+      if (base64Avatar.startsWith('data:')) {
+        source = source.replace(/xlink:href="[^"]+"/, `xlink:href="${base64Avatar}"`);
+      }
+    }
+
+    return source;
+  }, [repoData]);
+
+  const downloadSvg = useCallback(async () => {
     setLoading(true);
-
     try {
-      const serializer = new XMLSerializer();
-      let source = serializer.serializeToString(svgRef.current);
+      const source = await serializeSvg();
+      if (!source) return;
+      const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${repoData?.name || 'social-card'}.svg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      setError(messages.app.failedDownload);
+    } finally {
+      setLoading(false);
+    }
+  }, [serializeSvg, messages.app.failedDownload, repoData]);
 
-      if (!source.match(/^<svg[^>]+xmlns="http:\/\/www\.w3\.org\/2000\/svg"/)) {
-        source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
-      }
-      if (!source.match(/^<svg[^>]+xmlns:xlink="http:\/\/www\.w3\.org\/1999\/xlink"/)) {
-        source = source.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
-      }
-
-      if (repoData?.avatarUrl) {
-        const base64Avatar = await urlToBase64(repoData.avatarUrl);
-        if (base64Avatar.startsWith('data:')) {
-          source = source.replace(/xlink:href="[^"]+"/, `xlink:href="${base64Avatar}"`);
-        }
-      }
+  const downloadImage = useCallback(async () => {
+    setLoading(true);
+    try {
+      const source = await serializeSvg();
+      if (!source) return;
 
       const canvas = document.createElement('canvas');
       canvas.width = 1200;
@@ -202,8 +210,7 @@ export default function App() {
       const context = canvas.getContext('2d');
       if (!context) return;
 
-      const svgBlob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
-      const objectUrl = URL.createObjectURL(svgBlob);
+      const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
 
       await new Promise<void>((resolve, reject) => {
         const image = new Image();
@@ -211,7 +218,6 @@ export default function App() {
           context.fillStyle = '#18181b';
           context.fillRect(0, 0, canvas.width, canvas.height);
           context.drawImage(image, 0, 0);
-          URL.revokeObjectURL(objectUrl);
 
           const pngUrl = canvas.toDataURL('image/png');
           const downloadLink = document.createElement('a');
@@ -223,10 +229,9 @@ export default function App() {
           resolve();
         };
         image.onerror = () => {
-          URL.revokeObjectURL(objectUrl);
           reject(new Error('Failed to render SVG to canvas.'));
         };
-        image.src = objectUrl;
+        image.src = svgDataUrl;
       });
     } catch (err) {
       console.error(err);
@@ -234,14 +239,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [messages.app.failedDownload, repoData]);
-
-  const resetLayout = () => {
-    setConfig((prev) => ({
-      ...prev,
-      layout: createDefaultLayout(),
-    }));
-  };
+  }, [serializeSvg, messages.app.failedDownload, repoData]);
 
   return (
     <I18nProvider locale={locale} setLocale={setLocale}>
@@ -250,7 +248,7 @@ export default function App() {
           resolvedUiTheme === 'light' ? 'app-ui-light' : 'app-ui-dark'
         }`}
       >
-        <header className="relative z-20 bg-white">
+        <header className="relative z-20 app-surface border-b app-border backdrop-blur-md">
           <div className="mx-auto flex w-full max-w-[1360px] items-center justify-between gap-4 px-4 py-4 lg:px-8">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
@@ -298,7 +296,7 @@ export default function App() {
         </header>
 
         <main className="relative z-10 mx-auto flex w-full max-w-[1360px] flex-1 flex-col gap-5 px-4 py-5 lg:px-8 lg:py-6 xl:grid xl:grid-cols-[minmax(0,1fr)_390px]">
-          <section className="flex min-h-[calc(100vh-150px)] flex-col overflow-hidden rounded-2xl bg-white shadow-sm">
+          <section className="flex min-h-[calc(100vh-150px)] flex-col overflow-hidden rounded-2xl app-card shadow-sm">
             <div className="px-5 py-5 md:px-6">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -356,6 +354,7 @@ export default function App() {
                     primaryBlock={primaryBlock}
                     setSelection={setSelection}
                     svgRef={svgRef}
+                    onLogoUpload={handleLogoUpload}
                   />
                 ) : (
                   <div className="mt-8 flex min-h-[420px] w-full max-w-5xl flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-8 text-center">
@@ -367,23 +366,33 @@ export default function App() {
             </div>
 
             {repoData && (
-              <div className="flex flex-wrap items-center justify-between gap-3 bg-zinc-50 px-5 py-4 md:px-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t app-border app-surface-muted px-5 py-4 md:px-6">
                 <p className="text-xs text-zinc-500">{messages.app.readyToExportHint}</p>
-                <button
-                  type="button"
-                  onClick={downloadImage}
-                  className="flex items-center gap-2 rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-zinc-700"
-                >
-                  <Download className="h-5 w-5" />
-                  {messages.app.downloadPng}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={downloadSvg}
+                    className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50"
+                  >
+                    <Download className="h-4 w-4" />
+                    {messages.app.downloadSvg}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={downloadImage}
+                    className="flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-zinc-700"
+                  >
+                    <Download className="h-4 w-4" />
+                    {messages.app.downloadPng}
+                  </button>
+                </div>
               </div>
             )}
           </section>
 
-          <aside className="overflow-hidden rounded-2xl bg-white shadow-sm xl:min-h-[calc(100vh-150px)]">
+          <aside className="overflow-hidden rounded-2xl app-card shadow-sm xl:min-h-[calc(100vh-150px)]">
             <div className="flex h-full flex-col">
-              <div className="flex items-center justify-between bg-white px-5 py-4">
+              <div className="flex items-center justify-between border-b app-border app-surface px-5 py-4">
                 <div className="flex items-center gap-2 text-sm font-semibold tracking-wide text-zinc-700">
                   <Layers className="h-4 w-4" />
                   <span>{messages.app.styleLayoutTitle}</span>
@@ -397,14 +406,7 @@ export default function App() {
                 <ControlPanel
                   config={config}
                   setConfig={setConfig}
-                  onLogoUpload={handleLogoUpload}
                   disabled={!repoData}
-                  selectedBlocks={selectedBlocks}
-                  primaryBlock={primaryBlock}
-                  setSelection={setSelection}
-                  onResetLayout={resetLayout}
-                  onAlign={runAlignment}
-                  onDistribute={runDistribution}
                   onExportPreset={handleExportPreset}
                   onImportPreset={handleImportPreset}
                 />

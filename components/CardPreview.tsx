@@ -157,7 +157,7 @@ export const CardPreview = forwardRef<SVGSVGElement, CardPreviewProps>(({ data, 
           <defs>
             <linearGradient id="canvas-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor={config.colors.background} />
-              <stop offset="100%" stopColor="#09090b" />
+              <stop offset="100%" stopColor={config.colors.accent} />
             </linearGradient>
           </defs>
           <rect width={width} height={height} fill="url(#canvas-gradient)" />

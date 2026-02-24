@@ -23,6 +23,7 @@ interface LocaleMessages {
     emptyCanvasHint: string;
     readyToExportHint: string;
     downloadPng: string;
+    downloadSvg: string;
     failedFetchRepo: string;
     failedImportPreset: string;
     failedDownload: string;
@@ -33,6 +34,8 @@ interface LocaleMessages {
   editorCanvas: {
     canvasMeta: string;
     selectedLayers: string;
+    showLabels: string;
+    hideLabels: string;
     instructions: string;
   };
   controlPanel: {
@@ -96,6 +99,14 @@ interface LocaleMessages {
       issues: string;
     };
   };
+  popover: {
+    avatar: string;
+    title: string;
+    description: string;
+    stats: string;
+    badges: string;
+    resetDefault: string;
+  };
   card: {
     stars: string;
     forks: string;
@@ -132,8 +143,9 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
       fetch: 'Fetch',
       waitingCanvasHint: 'Preview canvas will be generated here after loading a repository.',
       emptyCanvasHint: 'Enter a repository to generate and edit a card.',
-      readyToExportHint: 'Use drag and alignment tools, then export your final PNG.',
-      downloadPng: 'Download PNG',
+      readyToExportHint: 'Use drag and alignment tools, then export your final image.',
+      downloadPng: 'PNG',
+      downloadSvg: 'SVG',
       failedFetchRepo: 'Failed to fetch repository.',
       failedImportPreset: 'Failed to import preset.',
       failedDownload: 'Failed to download image.',
@@ -144,6 +156,8 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
     editorCanvas: {
       canvasMeta: '1200 × 630 Social Card Canvas',
       selectedLayers: 'Selected layers: {count}',
+      showLabels: 'Show labels',
+      hideLabels: 'Hide labels',
       instructions:
         'Drag to move blocks. Ctrl/Cmd/Shift + click for multi-select. Drag corner handles to resize. Hold Shift to disable snapping.',
     },
@@ -207,6 +221,14 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
         forks: '分叉',
         issues: '议题',
       },
+    },
+    popover: {
+      avatar: 'Avatar',
+      title: 'Title',
+      description: 'Description',
+      stats: 'Stats',
+      badges: 'Badges',
+      resetDefault: 'Reset to Default',
     },
     card: {
       stars: '星标',
@@ -296,8 +318,9 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
       fetch: '获取',
       waitingCanvasHint: '加载仓库后，这里会生成可编辑的预览画布。',
       emptyCanvasHint: '输入仓库后可生成并编辑卡片。',
-      readyToExportHint: '可先用拖拽和对齐工具调整布局，再导出 PNG。',
-      downloadPng: '下载 PNG',
+      readyToExportHint: '可先用拖拽和对齐工具调整布局，再导出图片。',
+      downloadPng: 'PNG',
+      downloadSvg: 'SVG',
       failedFetchRepo: '获取仓库失败。',
       failedImportPreset: '导入预设失败。',
       failedDownload: '下载图片失败。',
@@ -308,6 +331,8 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
     editorCanvas: {
       canvasMeta: '1200 × 630 社交卡片画布',
       selectedLayers: '已选图层：{count}',
+      showLabels: '显示标签',
+      hideLabels: '隐藏标签',
       instructions:
         '拖拽可移动图层。Ctrl/Cmd/Shift + 点击可多选。拖动四角手柄可缩放。按住 Shift 可临时关闭吸附。',
     },
@@ -372,6 +397,14 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
         issues: 'Issues',
       },
     },
+    popover: {
+      avatar: '头像',
+      title: '标题',
+      description: '描述',
+      stats: '统计',
+      badges: '徽章',
+      resetDefault: '还原默认',
+    },
     card: {
       stars: 'Stars',
       forks: 'Forks',
@@ -390,7 +423,7 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
       theme: {
         gradient: '渐变',
         solid: '纯色',
-        simple: '简洁',
+        simple: '白色',
         dark: '深色',
       },
       font: {

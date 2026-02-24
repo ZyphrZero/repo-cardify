@@ -1,4 +1,5 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { Tag } from 'lucide-react';
 import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
@@ -11,15 +12,17 @@ import { useI18n } from './I18nContext';
 import { CardPreview } from './CardPreview';
 import { getInteractiveLayoutRects } from './cardMetrics';
 import { applyRectToConfig } from './layoutTransforms';
+import { BlockPopover } from './BlockPopover';
 
 interface EditorCanvasProps {
   data: RepoData;
   config: CardConfig;
   setConfig: React.Dispatch<React.SetStateAction<CardConfig>>;
   selectedBlocks: LayoutBlockId[];
-  primaryBlock: LayoutBlockId;
+  primaryBlock: LayoutBlockId | null;
   setSelection: (blocks: LayoutBlockId[], primary?: LayoutBlockId) => void;
   svgRef: React.RefObject<SVGSVGElement | null>;
+  onLogoUpload: (file: File) => void;
 }
 
 type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se';
@@ -178,12 +181,21 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   primaryBlock,
   setSelection,
   svgRef,
+  onLogoUpload,
 }) => {
   const { messages } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [verticalGuide, setVerticalGuide] = useState<number | null>(null);
   const [horizontalGuide, setHorizontalGuide] = useState<number | null>(null);
+  const [popoverBlock, setPopoverBlock] = useState<LayoutBlockId | null>(null);
+  const [popoverAnchor, setPopoverAnchor] = useState<DOMRect | null>(null);
+  const [showLabels, setShowLabels] = useState(true);
+
+  const closePopover = useCallback(() => {
+    setPopoverBlock(null);
+    setPopoverAnchor(null);
+  }, []);
 
   const rects = useMemo(() => getInteractiveLayoutRects(config, data), [config, data]);
 
@@ -220,6 +232,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       startRects,
     });
 
+    closePopover();
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
@@ -338,10 +351,16 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     if (event.shiftKey || event.ctrlKey || event.metaKey) {
       const nextSelection = toggleBlock(selectedBlocks, block);
       setSelection(nextSelection, block);
+      closePopover();
       return;
     }
 
     setSelection([block], block);
+
+    // Open popover anchored to the clicked button
+    const buttonRect = event.currentTarget.getBoundingClientRect();
+    setPopoverBlock(block);
+    setPopoverAnchor(buttonRect);
   };
 
   return (
@@ -350,9 +369,19 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         <span className="rounded-md border border-zinc-200 bg-white px-2.5 py-1">
           {messages.editorCanvas.canvasMeta}
         </span>
-        <span className="rounded-md border border-zinc-200 bg-white px-2.5 py-1">
-          {messages.editorCanvas.selectedLayers.replace('{count}', String(selectedBlocks.length))}
-        </span>
+        <button
+          type="button"
+          onClick={() => setShowLabels((prev) => !prev)}
+          className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 transition-colors ${
+            showLabels
+              ? 'border-indigo-200 bg-indigo-50 text-indigo-600'
+              : 'border-zinc-200 bg-white text-zinc-400 hover:bg-zinc-50'
+          }`}
+          title={showLabels ? messages.editorCanvas.hideLabels : messages.editorCanvas.showLabels}
+        >
+          <Tag className="h-3.5 w-3.5" />
+          {showLabels ? messages.editorCanvas.hideLabels : messages.editorCanvas.showLabels}
+        </button>
       </div>
 
       <div className="rounded-xl bg-zinc-50 p-2">
@@ -363,6 +392,10 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         >
           <CardPreview ref={svgRef} data={data} config={config} />
 
+        <div
+          className="absolute inset-0"
+          onClick={() => { setSelection([]); closePopover(); }}
+        />
         <div className="pointer-events-none absolute inset-0">
           {verticalGuide !== null && (
             <div
@@ -391,7 +424,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                     ? 'border-emerald-400 bg-emerald-100/70 text-emerald-700'
                     : isSelected
                       ? 'border-cyan-300/80 bg-cyan-100/70 text-cyan-700'
-                      : 'border-zinc-300/70 bg-white/35 text-zinc-700 hover:border-zinc-400/80'
+                      : 'border-transparent bg-transparent text-transparent hover:border-zinc-300/50 hover:bg-white/20 hover:text-zinc-700'
                 }`}
                 style={{
                   left: toPercent(rect.x, CANVAS_WIDTH),
@@ -407,9 +440,11 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                 onPointerCancel={handlePointerUp}
                 onClick={(event) => onBlockClick(event, block)}
               >
-                <span className="absolute left-1.5 top-1.5 rounded bg-white/80 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-zinc-700">
-                  {messages.options.layoutBlock[block]}
-                </span>
+                {showLabels && (
+                  <span className="pointer-events-none absolute bottom-full left-0 mb-1 rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-zinc-700 shadow-sm">
+                    {messages.options.layoutBlock[block]}
+                  </span>
+                )}
 
                 {isPrimary && (
                   <>
@@ -432,6 +467,17 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       <p className="mt-3 rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-500">
         {messages.editorCanvas.instructions}
       </p>
+
+      {popoverBlock && popoverAnchor && (
+        <BlockPopover
+          block={popoverBlock}
+          anchor={popoverAnchor}
+          config={config}
+          setConfig={setConfig}
+          onClose={closePopover}
+          onLogoUpload={onLogoUpload}
+        />
+      )}
     </div>
   );
 };

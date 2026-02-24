@@ -175,7 +175,7 @@ export const createDefaultCardConfig = (): CardConfig => ({
   font: 'inter',
   colors: {
     background: '#4f46e5',
-    accent: '#ffffff',
+    accent: '#09090b',
   },
   pattern: {
     id: 'none',
