@@ -1,18 +1,130 @@
-/* Custom scrollbar for better aesthetics */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #18181b;
+  background: #e5e7eb;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #3f3f46;
-  border-radius: 4px;
+  background: #9ca3af;
+  border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #52525b;
+  background: #6b7280;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background-color: #ffffff;
+  color: #111827;
+}
+
+.app-ui-root {
+  isolation: isolate;
+}
+
+.app-theme-bg {
+  background-color: #ffffff;
+}
+
+.control-panel > section h3 {
+  letter-spacing: 0.01em;
+}
+
+.app-ui-root .control-panel :is(input[type='number'], select, textarea, input[type='text']) {
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.app-ui-root .control-panel input[type='file']::file-selector-button {
+  border-radius: 8px;
+}
+
+.app-ui-light {
+  color-scheme: light;
+}
+
+.app-ui-dark {
+  color-scheme: dark;
+}
+
+.app-ui-dark .app-theme-bg {
+  background-color: #18181b !important;
+}
+
+.app-ui-dark .bg-zinc-100 {
+  background-color: #27272a !important;
+}
+
+.app-ui-dark .bg-zinc-50 {
+  background-color: #27272a !important;
+}
+
+.app-ui-dark .bg-white {
+  background-color: #27272a !important;
+}
+
+.app-ui-dark .bg-white\/80 {
+  background-color: rgba(39, 39, 42, 0.92) !important;
+}
+
+.app-ui-dark .border-zinc-300 {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.app-ui-dark .border-zinc-200 {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.app-ui-dark .text-zinc-900 {
+  color: #f9fafb !important;
+}
+
+.app-ui-dark .text-zinc-800 {
+  color: #f3f4f6 !important;
+}
+
+.app-ui-dark .text-zinc-700 {
+  color: #e5e7eb !important;
+}
+
+.app-ui-dark .text-zinc-600 {
+  color: #d1d5db !important;
+}
+
+.app-ui-dark .text-zinc-500 {
+  color: #9ca3af !important;
+}
+
+.app-ui-dark .placeholder\:text-zinc-500::placeholder {
+  color: #9ca3af !important;
+}
+
+.app-ui-dark .hover\:bg-zinc-50:hover {
+  background-color: #3f3f46 !important;
+}
+
+.app-ui-dark .hover\:bg-zinc-100:hover {
+  background-color: #3f3f46 !important;
+}
+
+.app-ui-dark ::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+.app-ui-dark ::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+.app-ui-dark ::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
 }

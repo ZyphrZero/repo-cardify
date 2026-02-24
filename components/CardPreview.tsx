@@ -10,204 +10,171 @@ import {
   plus,
   signal,
 } from 'hero-patterns';
-import { RepoData, CardConfig, ThemeType, FontType, PatternType, BadgeStyle, AvatarBackgroundType } from '../types';
+import {
+  CANVAS_HEIGHT,
+  CANVAS_WIDTH,
+  CardConfig,
+  FontId,
+  PatternId,
+  RepoData,
+  ThemeId,
+} from '../types';
+import { useI18n } from './I18nContext';
+import { getBadgeOffsets, getBadgeWidth, getVisibleStats } from './cardMetrics';
 
 interface CardPreviewProps {
   data: RepoData;
   config: CardConfig;
 }
 
-// Map logical fonts to CSS font families
-const fontMap: Record<FontType, string> = {
-  [FontType.Inter]: "'Inter', sans-serif",
-  [FontType.Mono]: "'JetBrains Mono', monospace",
-  [FontType.Serif]: "'Merriweather', serif",
-  [FontType.Poppins]: "'Poppins', sans-serif",
-  [FontType.Playfair]: "'Playfair Display', serif",
-  [FontType.Oswald]: "'Oswald', sans-serif",
-};
-
-// Helper: Get contrast color (black or white) for text based on bg
-const getContrastColor = (hex: string) => {
-  let c = hex.substring(1).split('');
-  if(c.length === 3){
-      c = [c[0], c[0], c[1], c[1], c[2], c[2]];
-  }
-  let cStr = c.join('');
-  let r = parseInt(cStr.substring(0,2), 16);
-  let g = parseInt(cStr.substring(2,4), 16);
-  let b = parseInt(cStr.substring(4,6), 16);
-  let yiq = ((r*299)+(g*587)+(b*114))/1000;
-  return (yiq >= 128) ? '#18181b' : '#ffffff';
+interface ThemeTokens {
+  primaryText: string;
+  secondaryText: string;
+  cardBg: string;
+  cardBorder: string;
+  patternColor: string;
 }
 
-export const CardPreview = forwardRef<SVGSVGElement, CardPreviewProps>(({ data, config }, ref) => {
-  const width = 1200;
-  const height = 630;
-  
-  // --- COLOR LOGIC ---
-  const fontFamily = fontMap[config.font];
-  
-  // Determine Base Colors
-  let primaryText = '#ffffff';
-  let secondaryText = '#e4e4e7';
-  let accentColor = config.bgColor; // Used for highlights in Simple/Dark modes
-  let cardBg = 'rgba(255,255,255,0.1)';
-  let cardBorder = 'rgba(255,255,255,0.2)';
+const FONT_FAMILY_MAP: Record<FontId, string> = {
+  inter: "'Inter', sans-serif",
+  mono: "'JetBrains Mono', monospace",
+  serif: "'Merriweather', serif",
+  poppins: "'Poppins', sans-serif",
+  playfair: "'Playfair Display', serif",
+  oswald: "'Oswald', sans-serif",
+};
 
-  if (config.theme === ThemeType.Simple) {
-    primaryText = '#18181b';
-    secondaryText = '#52525b';
-    cardBg = 'rgba(0,0,0,0.03)';
-    cardBorder = 'rgba(0,0,0,0.08)';
-  } else if (config.theme === ThemeType.Dark) {
-    primaryText = '#ffffff';
-    secondaryText = '#a1a1aa';
-    cardBg = 'rgba(255,255,255,0.05)';
-    cardBorder = 'rgba(255,255,255,0.1)';
-  } else if (config.theme === ThemeType.Solid) {
-    // Auto contrast
-    const contrast = getContrastColor(config.bgColor);
-    const isLight = contrast === '#18181b';
-    primaryText = contrast;
-    secondaryText = isLight ? '#52525b' : '#e4e4e7';
-    cardBg = isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.1)';
-    cardBorder = isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.2)';
-    accentColor = primaryText; 
-  } else {
-    // Gradient
-    primaryText = '#ffffff';
-    secondaryText = '#e4e4e7';
-    cardBg = 'rgba(255,255,255,0.1)';
-    cardBorder = 'rgba(255,255,255,0.2)';
+const patternFunctions: Partial<Record<PatternId, (color: string, opacity: number) => string>> = {
+  signal,
+  'charlie-brown': charlieBrown,
+  'formal-invitation': formalInvitation,
+  plus,
+  'circuit-board': circuitBoard,
+  'overlapping-hexagons': overlappingHexagons,
+  'brick-wall': brickWall,
+  'floating-cogs': floatingCogs,
+  'diagonal-stripes': diagonalStripes,
+};
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const getContrastColor = (hex: string) => {
+  const value = hex.replace('#', '');
+  const safe = value.length === 3 ? value.split('').map((v) => `${v}${v}`).join('') : value;
+  const r = Number.parseInt(safe.slice(0, 2), 16) || 0;
+  const g = Number.parseInt(safe.slice(2, 4), 16) || 0;
+  const b = Number.parseInt(safe.slice(4, 6), 16) || 0;
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 128 ? '#18181b' : '#ffffff';
+};
+
+const getThemeTokens = (theme: ThemeId, background: string): ThemeTokens => {
+  if (theme === 'simple') {
+    return {
+      primaryText: '#18181b',
+      secondaryText: '#52525b',
+      cardBg: 'rgba(0,0,0,0.04)',
+      cardBorder: 'rgba(0,0,0,0.1)',
+      patternColor: '#09090b',
+    };
   }
 
-  // Background Rendering
+  if (theme === 'solid') {
+    const contrast = getContrastColor(background);
+    const isLight = contrast === '#18181b';
+    return {
+      primaryText: contrast,
+      secondaryText: isLight ? '#3f3f46' : '#e4e4e7',
+      cardBg: isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.1)',
+      cardBorder: isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.24)',
+      patternColor: isLight ? '#18181b' : '#f4f4f5',
+    };
+  }
+
+  if (theme === 'dark') {
+    return {
+      primaryText: '#ffffff',
+      secondaryText: '#a1a1aa',
+      cardBg: 'rgba(255,255,255,0.06)',
+      cardBorder: 'rgba(255,255,255,0.12)',
+      patternColor: '#f4f4f5',
+    };
+  }
+
+  return {
+    primaryText: '#ffffff',
+    secondaryText: '#e4e4e7',
+    cardBg: 'rgba(255,255,255,0.1)',
+    cardBorder: 'rgba(255,255,255,0.2)',
+    patternColor: '#f8fafc',
+  };
+};
+
+const extractPatternData = (patternUrl: string) => {
+  const raw = patternUrl.replace(/^url\((['"]?)/, '').replace(/(['"]?)\)$/, '');
+  const widthMatch = raw.match(/width%3D%22(\d+)%22/);
+  const heightMatch = raw.match(/height%3D%22(\d+)%22/);
+
+  return {
+    dataUrl: raw,
+    width: Number(widthMatch?.[1] ?? 120),
+    height: Number(heightMatch?.[1] ?? 120),
+  };
+};
+
+export const CardPreview = forwardRef<SVGSVGElement, CardPreviewProps>(({ data, config }, ref) => {
+  const { messages } = useI18n();
+  const width = CANVAS_WIDTH;
+  const height = CANVAS_HEIGHT;
+  const tokens = getThemeTokens(config.theme, config.colors.background);
+  const fontFamily = FONT_FAMILY_MAP[config.font];
+
+  const patternFunction = patternFunctions[config.pattern.id];
+  const patternData =
+    config.pattern.id !== 'none' && patternFunction
+      ? extractPatternData(patternFunction(tokens.patternColor, clamp(config.pattern.opacity, 0.05, 0.95)))
+      : null;
+
+  const visibleStats = getVisibleStats(config, data);
+
+  const titleText = config.text.customTitle || data.name;
+  const descriptionText = config.text.customDescription || data.description || messages.app.noDescription;
+
+  const badgeOffsets = getBadgeOffsets(data.languages, config.badge);
+
+  const ownerBaseline = config.text.ownerSize;
+  const titleBaseline = config.text.showOwner
+    ? config.text.ownerSize + config.text.titleSize + 16
+    : config.text.titleSize;
+
+  const avatarSize = clamp(config.avatar.size, 40, 260);
+  const avatarRadius = clamp(config.avatar.radius, 0, avatarSize / 2);
+
   const renderBackground = () => {
-    switch (config.theme) {
-      case ThemeType.Gradient:
-        return (
+    if (config.theme === 'gradient') {
+      return (
+        <>
           <defs>
-            <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor={config.bgColor} />
+            <linearGradient id="canvas-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor={config.colors.background} />
               <stop offset="100%" stopColor="#09090b" />
             </linearGradient>
-            <rect width={width} height={height} fill="url(#bgGradient)" />
           </defs>
-        );
-      case ThemeType.Simple:
-        return <rect width={width} height={height} fill="#ffffff" />;
-      case ThemeType.Dark:
-          return <rect width={width} height={height} fill="#09090b" />;
-      case ThemeType.Solid:
-      default:
-        return <rect width={width} height={height} fill={config.bgColor} />;
+          <rect width={width} height={height} fill="url(#canvas-gradient)" />
+        </>
+      );
     }
-  };
 
-  const patternFunctions: Partial<Record<PatternType, (color: string, opacity: number) => string>> = {
-    [PatternType.Signal]: signal,
-    [PatternType.CharlieBrown]: charlieBrown,
-    [PatternType.FormalInvitation]: formalInvitation,
-    [PatternType.Plus]: plus,
-    [PatternType.CircuitBoard]: circuitBoard,
-    [PatternType.OverlappingHexagons]: overlappingHexagons,
-    [PatternType.BrickWall]: brickWall,
-    [PatternType.FloatingCogs]: floatingCogs,
-    [PatternType.DiagonalStripes]: diagonalStripes,
-  };
-
-  const getHeroPattern = () => {
-    const patternFunction = patternFunctions[config.pattern];
-    if (!patternFunction) return null;
-
-    const isSolidDark = config.theme === ThemeType.Solid
-      ? getContrastColor(config.bgColor) === '#ffffff'
-      : false;
-    const isDarkTheme = config.theme === ThemeType.Dark || config.theme === ThemeType.Gradient || isSolidDark;
-    const [patternColor, patternOpacity] = isDarkTheme ? ['#eaeaea', 0.2] : ['#eaeaea', 0.6];
-
-    let patternImageUrl = patternFunction(patternColor, patternOpacity);
-    const widthMatch = patternImageUrl.match(/width%3D%22(\d+)%22/);
-    const heightMatch = patternImageUrl.match(/height%3D%22(\d+)%22/);
-    const baseWidth = Number(widthMatch?.[1] ?? 100);
-    const baseHeight = Number(heightMatch?.[1] ?? 100);
-    
-    // 使用可配置的缩放比例，默认为 1.0
-    const scale = config.patternScale ?? 1.0;
-    const width = baseWidth * scale;
-    const height = baseHeight * scale;
-
-    patternImageUrl = patternImageUrl
-      .replace(/^url\(['"]?/, 'url(')
-      .replace(/['"]?\)$/, ')');
-
-    const dataUrl = patternImageUrl.replace(/^url\(/, '').replace(/\)$/, '');
-
-    return { dataUrl, width, height };
-  };
-
-  const heroPattern = getHeroPattern();
-
-  // Stats Component
-  const StatBadge = ({ value, label, x }: { value: number, label: string, x: number }) => (
-    <g transform={`translate(${x}, 0)`}>
-      <rect x="0" y="0" width="140" height="60" rx="12" fill={cardBg} stroke={cardBorder} />
-      <text x="70" y="28" fill={primaryText} fontFamily={fontFamily} fontSize="20" fontWeight="bold" textAnchor="middle">{value}</text>
-      <text x="70" y="48" fill={secondaryText} fontFamily={fontFamily} fontSize="14" textAnchor="middle">{label}</text>
-    </g>
-  );
-
-  // Badge Component - 计算累积偏移量
-  const calculateMinimalOffset = (languages: string[], currentIndex: number): number => {
-    let offset = 0;
-    for (let i = 0; i < currentIndex; i++) {
-      // 估算文本宽度：每个字符约 10.8px (fontSize 18 * 0.6)
-      const textWidth = languages[i].length * 10.8;
-      // 圆点 + 间距 + 文本 + 右边距
-      offset += 10 + 15 + textWidth + 30;
+    if (config.theme === 'simple') {
+      return <rect width={width} height={height} fill="#ffffff" />;
     }
-    return offset;
-  };
 
-  const TechBadge = ({ lang, index }: { lang: string, index: number }) => {
-     let xOffset: number;
-     
-     if (config.badgeStyle === BadgeStyle.Minimal) {
-         xOffset = calculateMinimalOffset(data.languages, index);
-         return (
-            <g transform={`translate(${xOffset}, 0)`}>
-                <circle cx="10" cy="20" r="6" fill={accentColor} />
-                <text x="25" y="26" fill={primaryText} fontFamily={fontFamily} fontSize="18" fontWeight="600">{lang}</text>
-            </g>
-         );
-     }
-     
-     xOffset = index * 140;
-     
-     if (config.badgeStyle === BadgeStyle.Outline) {
-         return (
-             <g transform={`translate(${xOffset}, 0)`}>
-                <rect x="0" y="0" width="120" height="40" rx="20" fill="none" stroke={cardBorder} strokeWidth="2" />
-                <text x="60" y="26" fill={primaryText} fontFamily={fontFamily} fontSize="16" fontWeight="600" textAnchor="middle">{lang}</text>
-             </g>
-         );
-     }
-     
-     // Pill
-     return (
-        <g transform={`translate(${xOffset}, 0)`}>
-           <rect x="0" y="0" width="120" height="40" rx="20" fill={cardBg} stroke={cardBorder} strokeWidth="0.5" />
-           <text x="60" y="26" fill={primaryText} fontFamily={fontFamily} fontSize="16" fontWeight="600" textAnchor="middle">{lang}</text>
-        </g>
-     );
+    if (config.theme === 'dark') {
+      return <rect width={width} height={height} fill="#09090b" />;
+    }
+
+    return <rect width={width} height={height} fill={config.colors.background} />;
   };
-  
-  const visibleStats = [
-      { key: 'showStars', value: data.stars, label: 'Stars' },
-      { key: 'showForks', value: data.forks, label: 'Forks' },
-      { key: 'showIssues', value: data.issues, label: 'Issues' },
-  ].filter(s => (config as any)[s.key]);
 
   return (
     <svg
@@ -215,7 +182,7 @@ export const CardPreview = forwardRef<SVGSVGElement, CardPreviewProps>(({ data, 
       width={width}
       height={height}
       viewBox={`0 0 ${width} ${height}`}
-      className="w-full h-auto max-w-full shadow-2xl"
+      className="w-full h-full max-w-full shadow-2xl"
       xmlns="http://www.w3.org/2000/svg"
       xmlnsXlink="http://www.w3.org/1999/xlink"
     >
@@ -227,151 +194,211 @@ export const CardPreview = forwardRef<SVGSVGElement, CardPreviewProps>(({ data, 
         </style>
       </defs>
 
-      {/* 1. Background */}
       {renderBackground()}
 
-      {/* 2. Pattern Overlay */}
-      {heroPattern && (
+      {patternData && (
         <>
           <defs>
             <pattern
-              id="hero-pattern"
+              id="overlay-pattern"
               x="0"
               y="0"
-              width={heroPattern.width}
-              height={heroPattern.height}
+              width={patternData.width * clamp(config.pattern.scale, 0.5, 4)}
+              height={patternData.height * clamp(config.pattern.scale, 0.5, 4)}
               patternUnits="userSpaceOnUse"
+              patternTransform={`translate(${config.pattern.offsetX}, ${config.pattern.offsetY})`}
             >
               <image
-                href={heroPattern.dataUrl}
-                width={heroPattern.width}
-                height={heroPattern.height}
+                href={patternData.dataUrl}
+                width={patternData.width * clamp(config.pattern.scale, 0.5, 4)}
+                height={patternData.height * clamp(config.pattern.scale, 0.5, 4)}
               />
             </pattern>
           </defs>
-          <rect width={width} height={height} fill="url(#hero-pattern)" />
+          <rect width={width} height={height} fill="url(#overlay-pattern)" />
         </>
       )}
 
-      {/* 3. Content Container */}
-      <g transform="translate(100, 100)">
-        
-        {/* Header: Avatar + User/Repo */}
-        <g>
-           {/* Avatar Section */}
-           {config.showAvatar && (
-              <g>
-                {config.avatarBackground === AvatarBackgroundType.Circle && (
-                  <circle cx="60" cy="60" r="60" fill={cardBg} stroke={cardBorder} />
+      {config.avatar.visible && (
+        <g transform={`translate(${config.layout.avatar.x}, ${config.layout.avatar.y})`}>
+          {config.avatar.shape === 'circle' && (
+            <circle cx={avatarSize / 2} cy={avatarSize / 2} r={avatarSize / 2} fill={tokens.cardBg} stroke={tokens.cardBorder} />
+          )}
+          {config.avatar.shape === 'rounded' && (
+            <rect
+              x="0"
+              y="0"
+              width={avatarSize}
+              height={avatarSize}
+              rx={avatarRadius}
+              fill={tokens.cardBg}
+              stroke={tokens.cardBorder}
+            />
+          )}
+
+          {config.avatar.shape !== 'none' && (
+            <defs>
+              <clipPath id="avatar-clip-path">
+                {config.avatar.shape === 'circle' ? (
+                  <circle cx={avatarSize / 2} cy={avatarSize / 2} r={avatarSize / 2} />
+                ) : (
+                  <rect x="0" y="0" width={avatarSize} height={avatarSize} rx={avatarRadius} />
                 )}
-                {config.avatarBackground === AvatarBackgroundType.Rounded && (
-                  <rect
-                    x="0"
-                    y="0"
-                    width="120"
-                    height="120"
-                    rx={Math.max(0, Math.min(60, config.avatarRadius))}
-                    fill={cardBg}
-                    stroke={cardBorder}
-                  />
-                )}
-                {config.avatarBackground !== AvatarBackgroundType.None && (
-                  <defs>
-                    <clipPath id="avatar-clip">
-                      {config.avatarBackground === AvatarBackgroundType.Circle ? (
-                        <circle cx="60" cy="60" r="60" />
-                      ) : (
-                        <rect
-                          x="0"
-                          y="0"
-                          width="120"
-                          height="120"
-                          rx={Math.max(0, Math.min(60, config.avatarRadius))}
-                        />
-                      )}
-                    </clipPath>
-                  </defs>
-                )}
-                <image 
-                    x="0"
-                    y="0"
-                    width="120"
-                    height="120"
-                    xlinkHref={config.customLogo || data.avatarUrl}
-                    preserveAspectRatio={config.avatarBackground === AvatarBackgroundType.None ? "xMidYMid meet" : "xMidYMid slice"}
-                    clipPath={config.avatarBackground === AvatarBackgroundType.None ? undefined : "url(#avatar-clip)"}
-                />
-              </g>
-           )}
-           
-           <g transform={`translate(${config.showAvatar ? 150 : 0}, 45)`}>
-              {config.showOwner && (
-                <text 
-                    x="0" 
-                    y="0" 
-                    fill={secondaryText} 
-                    fontFamily={fontFamily} 
-                    fontSize="32"
-                    fontWeight="500"
-                >
-                    {data.owner} /
-                </text>
-              )}
-              <text 
-                x="0" 
-                y={config.showOwner ? 60 : 20} 
-                fill={primaryText} 
-                fontFamily={fontFamily} 
-                fontSize="64" 
-                fontWeight="800"
-              >
-                {config.customTitle || data.name}
-              </text>
-           </g>
+              </clipPath>
+            </defs>
+          )}
+
+          <image
+            x="0"
+            y="0"
+            width={avatarSize}
+            height={avatarSize}
+            xlinkHref={config.customLogo || data.avatarUrl}
+            preserveAspectRatio={config.avatar.shape === 'none' ? 'xMidYMid meet' : 'xMidYMid slice'}
+            clipPath={config.avatar.shape === 'none' ? undefined : 'url(#avatar-clip-path)'}
+          />
         </g>
+      )}
 
-        {/* Description */}
-        <foreignObject x="0" y="160" width="1000" height="200">
-           <div
-             {...{ xmlns: "http://www.w3.org/1999/xhtml" } as any}
-             style={{
-               fontFamily: fontFamily, // Use the resolved CSS font string
-               color: secondaryText,
-               fontSize: '36px',
-               lineHeight: '1.4',
-               fontWeight: '400',
-               display: '-webkit-box',
-               WebkitLineClamp: 3,
-               WebkitBoxOrient: 'vertical',
-               overflow: 'hidden',
-               textOverflow: 'ellipsis',
-               height: '100%'
-           }}>
-             {config.customDescription}
-           </div>
-        </foreignObject>
-
-        {/* Stats Row */}
-        {visibleStats.length > 0 && (
-            <g transform="translate(0, 380)">
-                {visibleStats.map((stat, i) => (
-                    <StatBadge key={stat.label} value={stat.value} label={stat.label} x={i * 160} />
-                ))}
-            </g>
+      <g transform={`translate(${config.layout.title.x}, ${config.layout.title.y})`}>
+        {config.text.showOwner && (
+          <text x="0" y={ownerBaseline} fill={tokens.secondaryText} fontFamily={fontFamily} fontSize={config.text.ownerSize} fontWeight="500">
+            {data.owner} /
+          </text>
         )}
-
-        {/* Badges / Tech Stack */}
-        {config.showBadges && data.languages.length > 0 && (
-             <g transform={`translate(${visibleStats.length > 0 ? (visibleStats.length * 160) + 20 : 0}, ${visibleStats.length > 0 ? 395 : 380})`}>
-                {data.languages.map((lang, index) => (
-                    <TechBadge key={lang} lang={lang} index={index} />
-                ))}
-             </g>
-        )}
-
+        <text x="0" y={titleBaseline} fill={tokens.primaryText} fontFamily={fontFamily} fontSize={config.text.titleSize} fontWeight="800">
+          {titleText}
+        </text>
       </g>
+
+      <foreignObject
+        x={config.layout.description.x}
+        y={config.layout.description.y}
+        width={config.layout.description.w}
+        height={config.layout.description.h}
+      >
+        <div
+          {...({ xmlns: 'http://www.w3.org/1999/xhtml' } as any)}
+          style={{
+            fontFamily,
+            color: tokens.secondaryText,
+            fontSize: `${config.text.descriptionSize}px`,
+            lineHeight: '1.35',
+            fontWeight: 400,
+            display: '-webkit-box',
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            width: '100%',
+            height: '100%',
+          }}
+        >
+          {descriptionText}
+        </div>
+      </foreignObject>
+
+      {visibleStats.length > 0 && (
+        <g transform={`translate(${config.layout.stats.x}, ${config.layout.stats.y})`}>
+          {visibleStats.map((stat, index) => {
+            const x = index * (config.stats.itemWidth + config.stats.gap);
+            const valueSize = Math.max(18, Math.round(config.stats.itemHeight * 0.36));
+            const labelSize = Math.max(12, Math.round(config.stats.itemHeight * 0.22));
+            return (
+              <g key={stat.key} transform={`translate(${x}, 0)`}>
+                <rect
+                  x="0"
+                  y="0"
+                  width={config.stats.itemWidth}
+                  height={config.stats.itemHeight}
+                  rx={Math.min(14, config.stats.itemHeight / 2)}
+                  fill={tokens.cardBg}
+                  stroke={tokens.cardBorder}
+                />
+                <text
+                  x={config.stats.itemWidth / 2}
+                  y={config.stats.itemHeight / 2 - 2}
+                  fill={tokens.primaryText}
+                  fontFamily={fontFamily}
+                  fontSize={valueSize}
+                  fontWeight="700"
+                  textAnchor="middle"
+                >
+                  {stat.value}
+                </text>
+                <text
+                  x={config.stats.itemWidth / 2}
+                  y={config.stats.itemHeight - 10}
+                  fill={tokens.secondaryText}
+                  fontFamily={fontFamily}
+                  fontSize={labelSize}
+                  textAnchor="middle"
+                >
+                  {messages.card[stat.key]}
+                </text>
+              </g>
+            );
+          })}
+        </g>
+      )}
+
+      {config.badge.visible && data.languages.length > 0 && (
+        <g transform={`translate(${config.layout.badges.x}, ${config.layout.badges.y})`}>
+          {data.languages.map((language, index) => {
+            const x = badgeOffsets[index] ?? 0;
+            const badgeWidth = getBadgeWidth(language, config.badge);
+            const badgeHeight = config.badge.height;
+            const textY = badgeHeight / 2 + config.badge.fontSize * 0.35;
+
+            if (config.badge.style === 'minimal') {
+              const dotRadius = Math.max(4, config.badge.fontSize * 0.28);
+              return (
+                <g key={language} transform={`translate(${x}, 0)`}>
+                  <circle cx={dotRadius} cy={badgeHeight / 2} r={dotRadius} fill={config.colors.accent} />
+                  <text
+                    x={dotRadius * 2 + 8}
+                    y={textY}
+                    fill={tokens.primaryText}
+                    fontFamily={fontFamily}
+                    fontSize={config.badge.fontSize}
+                    fontWeight="600"
+                  >
+                    {language}
+                  </text>
+                </g>
+              );
+            }
+
+            return (
+              <g key={language} transform={`translate(${x}, 0)`}>
+                <rect
+                  x="0"
+                  y="0"
+                  width={badgeWidth}
+                  height={badgeHeight}
+                  rx={badgeHeight / 2}
+                  fill={config.badge.style === 'pill' ? tokens.cardBg : 'none'}
+                  stroke={tokens.cardBorder}
+                  strokeWidth={config.badge.style === 'outline' ? 2 : 1}
+                />
+                <text
+                  x={badgeWidth / 2}
+                  y={textY}
+                  fill={tokens.primaryText}
+                  fontFamily={fontFamily}
+                  fontSize={config.badge.fontSize}
+                  fontWeight="600"
+                  textAnchor="middle"
+                >
+                  {language}
+                </text>
+              </g>
+            );
+          })}
+        </g>
+      )}
     </svg>
   );
 });
 
-CardPreview.displayName = "CardPreview";
+CardPreview.displayName = 'CardPreview';

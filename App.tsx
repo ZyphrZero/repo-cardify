@@ -1,61 +1,113 @@
-﻿'use client';
+'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
-import { Github, Download, Layout, Layers } from 'lucide-react';
-import { CardPreview } from './components/CardPreview';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Download, Github, Layers, Layout } from 'lucide-react';
+import { I18nProvider } from './components/I18nContext';
+import { EditorCanvas } from './components/EditorCanvas';
 import { ControlPanel } from './components/ControlPanel';
+import { getInteractiveLayoutRects } from './components/cardMetrics';
+import { AlignAction, DistributeAxis, alignSelectedBlocks, distributeSelectedBlocks } from './components/layoutTransforms';
+import { Locale, UiThemeMode, detectLocale, getLocaleMessages, isLocale } from './i18n';
 import { fetchRepoDetails } from './services/githubService';
-import { RepoData, CardConfig, ThemeType, FontType, PatternType, BadgeStyle, AvatarBackgroundType } from './types';
+import { exportConfigPreset, importConfigPreset } from './services/presetService';
+import { CardConfig, LayoutBlockId, RepoData, createDefaultCardConfig, createDefaultLayout } from './types';
 
-const INITIAL_CONFIG: CardConfig = {
-  theme: ThemeType.Gradient,
-  font: FontType.Inter,
-  pattern: PatternType.None,
-  patternScale: 1.0, // 默认 1.0x 缩放
-  badgeStyle: BadgeStyle.Pill,
-  avatarBackground: AvatarBackgroundType.Rounded,
-  avatarRadius: 24,
-  showOwner: true,
-  showAvatar: true,
-  showStars: true,
-  showForks: true,
-  showIssues: true,
-  showBadges: true,
-  bgColor: '#4f46e5', // Indigo-600
-  accentColor: '#ffffff',
-  customTitle: '',
-  customDescription: '',
-  customLogo: null,
+type ResolvedUiTheme = 'light' | 'dark';
+
+const UI_THEME_STORAGE_KEY = 'repo-cardify-ui-theme-mode';
+const LOCALE_STORAGE_KEY = 'repo-cardify-locale';
+
+const normalizeSelection = (blocks: LayoutBlockId[], primary?: LayoutBlockId): LayoutBlockId[] => {
+  const unique = Array.from(new Set(blocks));
+  const fallback: LayoutBlockId[] = unique.length > 0 ? unique : ['title'];
+  const primaryBlock = primary && fallback.includes(primary) ? primary : fallback[0];
+  return [primaryBlock, ...fallback.filter((block) => block !== primaryBlock)];
 };
+
+const isUiThemeMode = (value: string): value is UiThemeMode =>
+  value === 'system' || value === 'light' || value === 'dark';
 
 export default function App() {
   const [repoUrl, setRepoUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [repoData, setRepoData] = useState<RepoData | null>(null);
-  const [config, setConfig] = useState<CardConfig>(INITIAL_CONFIG);
+  const [config, setConfig] = useState<CardConfig>(() => createDefaultCardConfig());
+  const [selectedBlocks, setSelectedBlocks] = useState<LayoutBlockId[]>(['title']);
   const [error, setError] = useState<string | null>(null);
-  
-  // Ref for the SVG container to handle download
+  const [locale, setLocale] = useState<Locale>('en');
+  const [uiThemeMode, setUiThemeMode] = useState<UiThemeMode>('system');
+  const [systemPrefersDark, setSystemPrefersDark] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  const handleFetchRepo = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const primaryBlock = selectedBlocks[0] ?? 'title';
+  const resolvedUiTheme: ResolvedUiTheme = uiThemeMode === 'system' ? (systemPrefersDark ? 'dark' : 'light') : uiThemeMode;
+  const messages = getLocaleMessages(locale);
+
+  const setSelection = useCallback((blocks: LayoutBlockId[], primary?: LayoutBlockId) => {
+    setSelectedBlocks(normalizeSelection(blocks, primary));
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const storedMode = window.localStorage.getItem(UI_THEME_STORAGE_KEY);
+    if (storedMode && isUiThemeMode(storedMode)) {
+      setUiThemeMode(storedMode);
+    }
+
+    const storedLocale = window.localStorage.getItem(LOCALE_STORAGE_KEY);
+    if (storedLocale && isLocale(storedLocale)) {
+      setLocale(storedLocale);
+    } else {
+      setLocale(detectLocale(window.navigator.language));
+    }
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    setSystemPrefersDark(mediaQuery.matches);
+
+    const handleChange = (event: MediaQueryListEvent) => {
+      setSystemPrefersDark(event.matches);
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => {
+      mediaQuery.removeEventListener('change', handleChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(UI_THEME_STORAGE_KEY, uiThemeMode);
+    document.documentElement.dataset.uiTheme = resolvedUiTheme;
+  }, [uiThemeMode, resolvedUiTheme]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+    document.documentElement.lang = locale;
+  }, [locale]);
+
+  const handleFetchRepo = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!repoUrl.trim()) return;
 
     setLoading(true);
     setError(null);
+
     try {
       const data = await fetchRepoDetails(repoUrl);
       setRepoData(data);
-      // Reset custom fields when new repo is loaded
-      setConfig(prev => ({
+      setConfig((prev) => ({
         ...prev,
-        customTitle: data.name,
-        customDescription: data.description || 'No description provided.',
-        customLogo: null // Reset custom logo on new fetch
+        text: {
+          ...prev.text,
+          customTitle: data.name,
+          customDescription: data.description || messages.app.noDescription,
+        },
+        customLogo: null,
       }));
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch repository');
+      setError(err.message || messages.app.failedFetchRepo);
     } finally {
       setLoading(false);
     }
@@ -64,19 +116,48 @@ export default function App() {
   const handleLogoUpload = (file: File) => {
     const reader = new FileReader();
     reader.onloadend = () => {
-      setConfig(prev => ({ ...prev, customLogo: reader.result as string }));
+      setConfig((prev) => ({ ...prev, customLogo: reader.result as string }));
     };
     reader.readAsDataURL(file);
   };
 
-  // Helper: Convert image URL to base64 to avoid canvas tainting
-  // Uses CORS proxy to handle cross-origin images
+  const handleExportPreset = () => {
+    exportConfigPreset(config);
+  };
+
+  const handleImportPreset = async (file: File) => {
+    try {
+      const imported = await importConfigPreset(file);
+      setConfig(imported);
+      setError(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : messages.app.failedImportPreset;
+      setError(message);
+    }
+  };
+
+  const runAlignment = (action: AlignAction) => {
+    if (!repoData || selectedBlocks.length < 2) return;
+
+    setConfig((prev) => {
+      const rects = getInteractiveLayoutRects(prev, repoData);
+      return alignSelectedBlocks(prev, selectedBlocks, rects, action);
+    });
+  };
+
+  const runDistribution = (axis: DistributeAxis) => {
+    if (!repoData || selectedBlocks.length < 3) return;
+
+    setConfig((prev) => {
+      const rects = getInteractiveLayoutRects(prev, repoData);
+      return distributeSelectedBlocks(prev, selectedBlocks, rects, axis);
+    });
+  };
+
   const urlToBase64 = async (url: string): Promise<string> => {
     try {
-      // Try direct fetch first (some CDNs support CORS)
       let response = await fetch(url);
       if (!response.ok) {
-        // Fallback to CORS proxy
         const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
         response = await fetch(proxyUrl);
       }
@@ -88,7 +169,7 @@ export default function App() {
         reader.readAsDataURL(blob);
       });
     } catch {
-      return url; // Fallback to original URL if fetch fails
+      return url;
     }
   };
 
@@ -96,24 +177,20 @@ export default function App() {
     if (!svgRef.current) return;
 
     setLoading(true);
+
     try {
-      const svg = svgRef.current;
       const serializer = new XMLSerializer();
-      let source = serializer.serializeToString(svg);
+      let source = serializer.serializeToString(svgRef.current);
 
-      // Safety check for namespaces
-      if(!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)){
-          source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+      if (!source.match(/^<svg[^>]+xmlns="http:\/\/www\.w3\.org\/2000\/svg"/)) {
+        source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
       }
-      if(!source.match(/^<svg[^>]+xmlns:xlink="http\:\/\/www\.w3\.org\/1999\/xlink"/)){
-          source = source.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
+      if (!source.match(/^<svg[^>]+xmlns:xlink="http:\/\/www\.w3\.org\/1999\/xlink"/)) {
+        source = source.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
       }
 
-      // Convert external images (avatars) to base64 to avoid canvas tainting
-      const avatarUrlMatch = source.match(/xlink:href="([^"]+)"/g);
-      if (avatarUrlMatch && repoData?.avatarUrl) {
+      if (repoData?.avatarUrl) {
         const base64Avatar = await urlToBase64(repoData.avatarUrl);
-        // Only replace if we got a valid base64 result (not the original URL)
         if (base64Avatar.startsWith('data:')) {
           source = source.replace(/xlink:href="[^"]+"/, `xlink:href="${base64Avatar}"`);
         }
@@ -122,145 +199,220 @@ export default function App() {
       const canvas = document.createElement('canvas');
       canvas.width = 1200;
       canvas.height = 630;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      const context = canvas.getContext('2d');
+      if (!context) return;
 
-      const img = new Image();
-      const svgBlob = new Blob([source], {type: "image/svg+xml;charset=utf-8"});
-      const url = URL.createObjectURL(svgBlob);
+      const svgBlob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+      const objectUrl = URL.createObjectURL(svgBlob);
 
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        ctx.fillStyle = '#18181b';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
-        const pngUrl = canvas.toDataURL("image/png");
+      await new Promise<void>((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => {
+          context.fillStyle = '#18181b';
+          context.fillRect(0, 0, canvas.width, canvas.height);
+          context.drawImage(image, 0, 0);
+          URL.revokeObjectURL(objectUrl);
 
-        const downloadLink = document.createElement("a");
-        downloadLink.href = pngUrl;
-        downloadLink.download = `${repoData?.name || 'social-card'}.png`;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
-        console.error('Failed to load image for download');
-      };
-      img.src = url;
+          const pngUrl = canvas.toDataURL('image/png');
+          const downloadLink = document.createElement('a');
+          downloadLink.href = pngUrl;
+          downloadLink.download = `${repoData?.name || 'social-card'}.png`;
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+          resolve();
+        };
+        image.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          reject(new Error('Failed to render SVG to canvas.'));
+        };
+        image.src = objectUrl;
+      });
+    } catch (err) {
+      console.error(err);
+      setError(messages.app.failedDownload);
     } finally {
       setLoading(false);
     }
-  }, [repoData]);
+  }, [messages.app.failedDownload, repoData]);
+
+  const resetLayout = () => {
+    setConfig((prev) => ({
+      ...prev,
+      layout: createDefaultLayout(),
+    }));
+  };
 
   return (
-    <div className="min-h-screen flex flex-col bg-zinc-950 text-zinc-100">
-      {/* Header */}
-      <header className="border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-md sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-              <Github className="w-5 h-5 text-white" />
+    <I18nProvider locale={locale} setLocale={setLocale}>
+      <div
+        className={`app-ui-root app-theme-bg relative min-h-screen overflow-hidden text-zinc-900 ${
+          resolvedUiTheme === 'light' ? 'app-ui-light' : 'app-ui-dark'
+        }`}
+      >
+        <header className="relative z-20 bg-white">
+          <div className="mx-auto flex w-full max-w-[1360px] items-center justify-between gap-4 px-4 py-4 lg:px-8">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
+                <Github className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">{messages.header.designWorkspace}</p>
+                <h1 className="text-xl font-semibold text-zinc-900">Repo Cardify</h1>
+              </div>
             </div>
-            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400">
-              Repo Cardify
-            </h1>
-          </div>
-          <div className="flex items-center gap-4">
-             <span className="text-xs text-zinc-500 hidden sm:block">GitHub Social Card Generator</span>
-          </div>
-        </div>
-      </header>
 
-      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden max-h-[calc(100vh-64px)]">
-        
-        {/* Left: Preview Area */}
-        <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-zinc-950/50 flex flex-col items-center justify-start gap-8 relative">
-          
-          {/* Input Section */}
-          <div className="w-full max-w-2xl z-10 flex flex-col gap-3">
-            <form onSubmit={handleFetchRepo} className="relative group">
-              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl opacity-20 group-focus-within:opacity-40 transition-opacity blur-md"></div>
-              <div className="relative flex gap-2 bg-zinc-900 border border-zinc-800 p-2 rounded-xl shadow-xl">
-                <input
-                  type="text"
-                  placeholder="github_username/repository_name"
-                  className="flex-1 bg-transparent border-none outline-none px-4 text-zinc-100 placeholder-zinc-500 h-10"
-                  value={repoUrl}
-                  onChange={(e) => setRepoUrl(e.target.value)}
-                />
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {loading ? (
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                  ) : (
-                    <>Fetch</>
-                  )}
-                </button>
+            <div className="flex flex-wrap items-center justify-end gap-2 lg:gap-3">
+              <span className="hidden rounded-md bg-zinc-100 px-2.5 py-1 text-[11px] text-zinc-500 md:block">
+                {messages.header.tagline}
+              </span>
+
+              <label htmlFor="locale-mode" className="hidden text-xs text-zinc-500 sm:block">
+                {messages.header.languageLabel}
+              </label>
+              <select
+                id="locale-mode"
+                value={locale}
+                onChange={(event) => setLocale(event.target.value as Locale)}
+                className="rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-xs text-zinc-700 outline-none transition-colors hover:bg-zinc-50 focus:border-indigo-500"
+              >
+                <option value="en">{messages.options.locale.en}</option>
+                <option value="zh-CN">{messages.options.locale['zh-CN']}</option>
+              </select>
+
+              <label htmlFor="ui-theme-mode" className="hidden text-xs text-zinc-500 sm:block">
+                {messages.header.interfaceLabel}
+              </label>
+              <select
+                id="ui-theme-mode"
+                value={uiThemeMode}
+                onChange={(event) => setUiThemeMode(event.target.value as UiThemeMode)}
+                className="rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-xs text-zinc-700 outline-none transition-colors hover:bg-zinc-50 focus:border-indigo-500"
+              >
+                <option value="system">{messages.options.uiThemeMode.system}</option>
+                <option value="light">{messages.options.uiThemeMode.light}</option>
+                <option value="dark">{messages.options.uiThemeMode.dark}</option>
+              </select>
+            </div>
+          </div>
+        </header>
+
+        <main className="relative z-10 mx-auto flex w-full max-w-[1360px] flex-1 flex-col gap-5 px-4 py-5 lg:px-8 lg:py-6 xl:grid xl:grid-cols-[minmax(0,1fr)_390px]">
+          <section className="flex min-h-[calc(100vh-150px)] flex-col overflow-hidden rounded-2xl bg-white shadow-sm">
+            <div className="px-5 py-5 md:px-6">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-zinc-500">{messages.app.repositoryWorkspace}</p>
+                  <h2 className="mt-1 text-lg font-semibold text-zinc-900">{messages.app.repositoryHint}</h2>
+                </div>
+                <span className="rounded-md bg-zinc-100 px-2.5 py-1 text-[11px] text-zinc-500">
+                  {repoData ? messages.app.statusLoaded : messages.app.statusWaiting}
+                </span>
               </div>
-            </form>
 
-            {error && (
-              <div className={`p-3 rounded-lg text-sm text-center border ${error.includes('Rate limit') ? 'bg-amber-900/20 border-amber-800 text-amber-200' : 'bg-red-900/20 border-red-800 text-red-200'}`}>
-                {error}
-              </div>
-            )}
-          </div>
-
-          {/* Canvas Wrapper */}
-          <div className="w-full max-w-4xl flex-1 flex items-center justify-center relative min-h-[400px]">
-            {repoData ? (
-               <div className="relative shadow-2xl shadow-black/50 rounded-lg overflow-hidden border border-zinc-800/50">
-                 {/* The Actual SVG Component */}
-                 <CardPreview 
-                    ref={svgRef} 
-                    data={repoData} 
-                    config={config} 
+              <form onSubmit={handleFetchRepo} className="group">
+                <div className="flex items-center gap-2 rounded-xl bg-zinc-100 p-2 transition-shadow group-focus-within:shadow-[0_0_0_3px_rgba(99,102,241,0.16)]">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-zinc-500">
+                    <Github className="h-4 w-4" />
+                  </span>
+                  <input
+                    type="text"
+                    placeholder={messages.app.placeholderRepo}
+                    className="h-10 min-w-0 flex-1 border-none bg-transparent px-1 text-sm text-zinc-800 outline-none placeholder:text-zinc-500"
+                    value={repoUrl}
+                    onChange={(event) => setRepoUrl(event.target.value)}
                   />
-               </div>
-            ) : (
-              <div className="text-center text-zinc-500 flex flex-col items-center">
-                <Layout className="w-16 h-16 mb-4 opacity-20" />
-                <p>Enter a GitHub repository to generate a card</p>
-              </div>
-            )}
-          </div>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex h-10 min-w-[94px] items-center justify-center rounded-lg bg-indigo-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {loading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : messages.app.fetch}
+                  </button>
+                </div>
+              </form>
 
-          {/* Action Bar */}
-          {repoData && (
-             <div className="flex gap-4">
-                <button
-                  onClick={downloadImage}
-                  className="bg-white text-zinc-900 hover:bg-zinc-200 px-8 py-3 rounded-full font-bold flex items-center gap-2 shadow-lg shadow-indigo-500/20 transition-all"
+              {error && (
+                <div
+                  className={`mt-3 rounded-lg border px-3 py-2 text-sm ${
+                    error.includes('Rate limit')
+                      ? 'border-amber-800 bg-amber-900/20 text-amber-200'
+                      : 'border-red-800 bg-red-900/20 text-red-200'
+                  }`}
                 >
-                  <Download className="w-5 h-5" />
-                  Download PNG
-                </button>
-             </div>
-          )}
-        </div>
-
-        {/* Right: Controls Sidebar */}
-        <div className="w-full lg:w-96 bg-zinc-900 border-t lg:border-t-0 lg:border-l border-zinc-800 overflow-y-auto">
-          <div className="p-6 space-y-8">
-            <div className="flex items-center gap-2 text-sm font-bold text-zinc-400 uppercase tracking-wider">
-              <Layers className="w-4 h-4" />
-              <span>Configuration</span>
+                  {error}
+                </div>
+              )}
             </div>
 
-            <ControlPanel 
-              config={config} 
-              setConfig={setConfig} 
-              onLogoUpload={handleLogoUpload}
-              disabled={!repoData}
-            />
-          </div>
-        </div>
+            <div className="flex-1 overflow-y-auto px-4 py-5 md:px-6">
+              <div className="mx-auto flex w-full max-w-6xl flex-1 items-start justify-center">
+                {repoData ? (
+                  <EditorCanvas
+                    data={repoData}
+                    config={config}
+                    setConfig={setConfig}
+                    selectedBlocks={selectedBlocks}
+                    primaryBlock={primaryBlock}
+                    setSelection={setSelection}
+                    svgRef={svgRef}
+                  />
+                ) : (
+                  <div className="mt-8 flex min-h-[420px] w-full max-w-5xl flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-8 text-center">
+                    <Layout className="mb-4 h-14 w-14 opacity-30" />
+                    <p className="text-sm text-zinc-400">{messages.app.waitingCanvasHint}</p>
+                  </div>
+                )}
+              </div>
+            </div>
 
-      </main>
-    </div>
+            {repoData && (
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-zinc-50 px-5 py-4 md:px-6">
+                <p className="text-xs text-zinc-500">{messages.app.readyToExportHint}</p>
+                <button
+                  type="button"
+                  onClick={downloadImage}
+                  className="flex items-center gap-2 rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-zinc-700"
+                >
+                  <Download className="h-5 w-5" />
+                  {messages.app.downloadPng}
+                </button>
+              </div>
+            )}
+          </section>
+
+          <aside className="overflow-hidden rounded-2xl bg-white shadow-sm xl:min-h-[calc(100vh-150px)]">
+            <div className="flex h-full flex-col">
+              <div className="flex items-center justify-between bg-white px-5 py-4">
+                <div className="flex items-center gap-2 text-sm font-semibold tracking-wide text-zinc-700">
+                  <Layers className="h-4 w-4" />
+                  <span>{messages.app.styleLayoutTitle}</span>
+                </div>
+                <span className="rounded-md bg-zinc-100 px-2.5 py-1 text-[11px] text-zinc-500">
+                  {messages.app.editorPanelBadge}
+                </span>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-4 py-4 md:px-5">
+                <ControlPanel
+                  config={config}
+                  setConfig={setConfig}
+                  onLogoUpload={handleLogoUpload}
+                  disabled={!repoData}
+                  selectedBlocks={selectedBlocks}
+                  primaryBlock={primaryBlock}
+                  setSelection={setSelection}
+                  onResetLayout={resetLayout}
+                  onAlign={runAlignment}
+                  onDistribute={runDistribution}
+                  onExportPreset={handleExportPreset}
+                  onImportPreset={handleImportPreset}
+                />
+              </div>
+            </div>
+          </aside>
+        </main>
+      </div>
+    </I18nProvider>
   );
 }

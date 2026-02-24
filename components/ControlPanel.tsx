@@ -1,292 +1,699 @@
 import React from 'react';
-import { CardConfig, ThemeType, FontType, PatternType, BadgeStyle, AvatarBackgroundType } from '../types';
-import { Palette, Type, Grid, Layout, Eye, Upload, Tag } from 'lucide-react';
+import {
+  AVATAR_SHAPE_OPTIONS,
+  BADGE_STYLE_OPTIONS,
+  CardConfig,
+  FONT_OPTIONS,
+  LayoutBlockId,
+  PATTERN_OPTIONS,
+  THEME_OPTIONS,
+} from '../types';
+import { useI18n } from './I18nContext';
+import { AlignAction, DistributeAxis } from './layoutTransforms';
 
 interface ControlPanelProps {
   config: CardConfig;
   setConfig: React.Dispatch<React.SetStateAction<CardConfig>>;
   onLogoUpload: (file: File) => void;
   disabled: boolean;
+  selectedBlocks: LayoutBlockId[];
+  primaryBlock: LayoutBlockId;
+  setSelection: (blocks: LayoutBlockId[], primary?: LayoutBlockId) => void;
+  onResetLayout: () => void;
+  onAlign: (action: AlignAction) => void;
+  onDistribute: (axis: DistributeAxis) => void;
+  onExportPreset: () => void;
+  onImportPreset: (file: File) => void;
 }
 
-export const ControlPanel: React.FC<ControlPanelProps> = ({ config, setConfig, onLogoUpload, disabled }) => {
-  
-  const handleChange = (key: keyof CardConfig, value: any) => {
-    setConfig(prev => ({ ...prev, [key]: value }));
+interface NumberInputProps {
+  label: string;
+  value: number;
+  min?: number;
+  max?: number;
+  step?: number;
+  onChange: (value: number) => void;
+}
+
+const NumberInput: React.FC<NumberInputProps> = ({ label, value, min, max, step = 1, onChange }) => (
+  <label className="space-y-1">
+    <span className="text-xs text-zinc-500">{label}</span>
+    <input
+      type="number"
+      min={min}
+      max={max}
+      step={step}
+      value={value}
+      onChange={(event) => {
+        const next = Number(event.target.value);
+        if (Number.isFinite(next)) {
+          onChange(next);
+        }
+      }}
+      className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm text-zinc-800 outline-none focus:border-indigo-500"
+    />
+  </label>
+);
+
+interface SelectInputProps {
+  label: string;
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  onChange: (value: string) => void;
+}
+
+const SelectInput: React.FC<SelectInputProps> = ({ label, value, options, onChange }) => (
+  <label className="space-y-1">
+    <span className="text-xs text-zinc-500">{label}</span>
+    <select
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm text-zinc-800 outline-none focus:border-indigo-500"
+    >
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  </label>
+);
+
+const BLOCK_ORDER: LayoutBlockId[] = ['avatar', 'title', 'description', 'stats', 'badges'];
+
+const ALIGN_ACTIONS: AlignAction[] = ['left', 'center', 'right', 'top', 'middle', 'bottom'];
+
+const DISTRIBUTE_OPTIONS: DistributeAxis[] = ['horizontal', 'vertical'];
+
+export const ControlPanel: React.FC<ControlPanelProps> = ({
+  config,
+  setConfig,
+  onLogoUpload,
+  disabled,
+  selectedBlocks,
+  primaryBlock,
+  setSelection,
+  onResetLayout,
+  onAlign,
+  onDistribute,
+  onExportPreset,
+  onImportPreset,
+}) => {
+  const { messages } = useI18n();
+  const [alignAction, setAlignAction] = React.useState<AlignAction>('left');
+  const [distributeAxis, setDistributeAxis] = React.useState<DistributeAxis>('horizontal');
+
+  const updateLayout = (block: LayoutBlockId, patch: Partial<{ x: number; y: number; w: number; h: number }>) => {
+    setConfig((prev) => ({
+      ...prev,
+      layout: {
+        ...prev.layout,
+        [block]: {
+          ...prev.layout[block],
+          ...patch,
+        },
+      },
+    }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      onLogoUpload(e.target.files[0]);
-      // Reset input value so the same file can be selected again if needed
-      e.target.value = '';
-    }
+  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    onLogoUpload(file);
+    event.target.value = '';
+  };
+
+  const handlePresetImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    onImportPreset(file);
+    event.target.value = '';
   };
 
   return (
-    <div className={`space-y-8 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
-      
-      {/* Theme Section */}
-      <div className="space-y-4">
-        <label className="flex items-center gap-2 text-sm font-semibold text-zinc-300">
-          <Palette className="w-4 h-4 text-indigo-400" />
-          Theme Style
-        </label>
-        <div className="grid grid-cols-2 gap-2">
-           {(Object.keys(ThemeType) as Array<keyof typeof ThemeType>).map((t) => (
-             <button
-               key={t}
-               onClick={() => handleChange('theme', ThemeType[t])}
-               className={`p-3 rounded-lg text-sm border transition-all ${
-                 config.theme === ThemeType[t] 
-                   ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-900/50' 
-                   : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
-               }`}
-             >
-               {t}
-             </button>
-           ))}
-        </div>
-      </div>
+    <div
+      className={`control-panel space-y-4 ${
+        disabled ? 'pointer-events-none opacity-50' : ''
+      } [&>section]:rounded-xl [&>section]:bg-zinc-50 [&>section]:p-4`}
+    >
+      <section className="space-y-4">
+        <h3 className="text-sm font-semibold text-zinc-700">{messages.controlPanel.sections.theme}</h3>
+        <SelectInput
+          label={messages.controlPanel.labels.themeStyle}
+          value={config.theme}
+          options={THEME_OPTIONS.map((option) => ({ value: option.id, label: messages.options.theme[option.id] }))}
+          onChange={(value) => setConfig((prev) => ({ ...prev, theme: value as CardConfig['theme'] }))}
+        />
 
-       {/* Color Picker */}
-       <div className="space-y-4">
-        <label className="flex items-center gap-2 text-sm font-semibold text-zinc-300">
-           Theme Color
-        </label>
-        <div className="flex gap-4 items-center">
-            <input 
-                type="color" 
-                value={config.bgColor}
-                onChange={(e) => handleChange('bgColor', e.target.value)}
-                className="w-10 h-10 rounded cursor-pointer bg-transparent border-none"
-            />
-            <span className="text-xs text-zinc-500 uppercase">{config.bgColor}</span>
-        </div>
-      </div>
-
-      {/* Font Section */}
-      <div className="space-y-4">
-        <label className="flex items-center gap-2 text-sm font-semibold text-zinc-300">
-          <Type className="w-4 h-4 text-pink-400" />
-          Typography
-        </label>
-        <div className="grid grid-cols-2 gap-2">
-           {Object.values(FontType).map((f) => (
-             <button
-               key={f}
-               onClick={() => handleChange('font', f)}
-               className={`p-2 rounded-lg text-xs border text-center transition-all ${
-                 config.font === f
-                   ? 'bg-zinc-800 border-pink-500 text-white' 
-                   : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800'
-               }`}
-               style={{ fontFamily: f.includes('Mono') ? 'monospace' : f.includes('Serif') ? 'serif' : 'sans-serif' }}
-             >
-               {f.split(' ')[0]}
-             </button>
-           ))}
-        </div>
-      </div>
-
-      {/* Pattern Section */}
-      <div className="space-y-4">
-        <label className="flex items-center gap-2 text-sm font-semibold text-zinc-300">
-          <Grid className="w-4 h-4 text-emerald-400" />
-          Background Pattern
-        </label>
-        <div className="flex flex-wrap gap-2">
-           {[
-             PatternType.None,
-             PatternType.Signal,
-             PatternType.CharlieBrown,
-             PatternType.FormalInvitation,
-             PatternType.Plus,
-             PatternType.CircuitBoard,
-             PatternType.OverlappingHexagons,
-             PatternType.BrickWall,
-             PatternType.FloatingCogs,
-             PatternType.DiagonalStripes,
-           ].map((pattern) => (
-             <button
-               key={pattern}
-               onClick={() => handleChange('pattern', pattern)}
-               className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                 config.pattern === pattern
-                   ? 'bg-emerald-900/30 border-emerald-500 text-emerald-400' 
-                   : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
-               }`}
-             >
-               {pattern}
-             </button>
-           ))}
-        </div>
-        
-        {/* Pattern Scale Slider */}
-        {config.pattern !== PatternType.None && (
-          <div className="space-y-2 pt-2">
-            <div className="flex items-center justify-between text-xs text-zinc-500">
-              <span>Pattern Scale</span>
-              <span>{config.patternScale.toFixed(1)}x</span>
-            </div>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="space-y-1">
+            <span className="text-xs text-zinc-500">{messages.controlPanel.labels.background}</span>
             <input
-              type="range"
-              min={0.5}
-              max={3.0}
-              step={0.1}
-              value={config.patternScale}
-              onChange={(e) => handleChange('patternScale', Number(e.target.value))}
-              className="w-full"
+              type="color"
+              value={config.colors.background}
+              onChange={(event) =>
+                setConfig((prev) => ({
+                  ...prev,
+                  colors: { ...prev.colors, background: event.target.value },
+                }))
+              }
+              className="h-9 w-full rounded border border-zinc-200 bg-white p-1"
+            />
+          </label>
+          <label className="space-y-1">
+            <span className="text-xs text-zinc-500">{messages.controlPanel.labels.accent}</span>
+            <input
+              type="color"
+              value={config.colors.accent}
+              onChange={(event) =>
+                setConfig((prev) => ({
+                  ...prev,
+                  colors: { ...prev.colors, accent: event.target.value },
+                }))
+              }
+              className="h-9 w-full rounded border border-zinc-200 bg-white p-1"
+            />
+          </label>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <h3 className="text-sm font-semibold text-zinc-700">{messages.controlPanel.sections.typography}</h3>
+        <SelectInput
+          label={messages.controlPanel.labels.fontFamily}
+          value={config.font}
+          options={FONT_OPTIONS.map((font) => ({ value: font.id, label: messages.options.font[font.id] }))}
+          onChange={(value) => setConfig((prev) => ({ ...prev, font: value as CardConfig['font'] }))}
+        />
+
+        <div className="grid grid-cols-3 gap-3">
+          <NumberInput
+            label={messages.controlPanel.labels.ownerSize}
+            value={config.text.ownerSize}
+            min={14}
+            max={64}
+            onChange={(value) =>
+              setConfig((prev) => ({
+                ...prev,
+                text: { ...prev.text, ownerSize: value },
+              }))
+            }
+          />
+          <NumberInput
+            label={messages.controlPanel.labels.titleSize}
+            value={config.text.titleSize}
+            min={24}
+            max={120}
+            onChange={(value) =>
+              setConfig((prev) => ({
+                ...prev,
+                text: { ...prev.text, titleSize: value },
+              }))
+            }
+          />
+          <NumberInput
+            label={messages.controlPanel.labels.descSize}
+            value={config.text.descriptionSize}
+            min={14}
+            max={72}
+            onChange={(value) =>
+              setConfig((prev) => ({
+                ...prev,
+                text: { ...prev.text, descriptionSize: value },
+              }))
+            }
+          />
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <h3 className="text-sm font-semibold text-zinc-700">{messages.controlPanel.sections.pattern}</h3>
+        <SelectInput
+          label={messages.controlPanel.labels.patternType}
+          value={config.pattern.id}
+          options={PATTERN_OPTIONS.map((pattern) => ({ value: pattern.id, label: messages.options.pattern[pattern.id] }))}
+          onChange={(value) =>
+            setConfig((prev) => ({
+              ...prev,
+              pattern: { ...prev.pattern, id: value as CardConfig['pattern']['id'] },
+            }))
+          }
+        />
+
+        <div className="grid grid-cols-2 gap-3">
+          <NumberInput
+            label={messages.controlPanel.labels.scale}
+            value={config.pattern.scale}
+            min={0.5}
+            max={4}
+            step={0.1}
+            onChange={(value) =>
+              setConfig((prev) => ({
+                ...prev,
+                pattern: { ...prev.pattern, scale: value },
+              }))
+            }
+          />
+          <NumberInput
+            label={messages.controlPanel.labels.opacity}
+            value={config.pattern.opacity}
+            min={0.05}
+            max={0.95}
+            step={0.05}
+            onChange={(value) =>
+              setConfig((prev) => ({
+                ...prev,
+                pattern: { ...prev.pattern, opacity: value },
+              }))
+            }
+          />
+          <NumberInput
+            label={messages.controlPanel.labels.offsetX}
+            value={config.pattern.offsetX}
+            min={-400}
+            max={400}
+            onChange={(value) =>
+              setConfig((prev) => ({
+                ...prev,
+                pattern: { ...prev.pattern, offsetX: value },
+              }))
+            }
+          />
+          <NumberInput
+            label={messages.controlPanel.labels.offsetY}
+            value={config.pattern.offsetY}
+            min={-300}
+            max={300}
+            onChange={(value) =>
+              setConfig((prev) => ({
+                ...prev,
+                pattern: { ...prev.pattern, offsetY: value },
+              }))
+            }
+          />
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <h3 className="text-sm font-semibold text-zinc-700">{messages.controlPanel.sections.avatar}</h3>
+        <label className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2">
+          <span className="text-xs text-zinc-600">{messages.controlPanel.labels.showAvatar}</span>
+          <input
+            type="checkbox"
+            checked={config.avatar.visible}
+            onChange={(event) =>
+              setConfig((prev) => ({
+                ...prev,
+                avatar: { ...prev.avatar, visible: event.target.checked },
+              }))
+            }
+            className="h-4 w-4 rounded border-zinc-300 bg-white"
+          />
+        </label>
+
+        <SelectInput
+          label={messages.controlPanel.labels.avatarShape}
+          value={config.avatar.shape}
+          options={AVATAR_SHAPE_OPTIONS.map((shape) => ({ value: shape.id, label: messages.options.avatarShape[shape.id] }))}
+          onChange={(value) =>
+            setConfig((prev) => ({
+              ...prev,
+              avatar: { ...prev.avatar, shape: value as CardConfig['avatar']['shape'] },
+            }))
+          }
+        />
+
+        <div className="grid grid-cols-2 gap-3">
+          <NumberInput
+            label={messages.controlPanel.labels.avatarSize}
+            value={config.avatar.size}
+            min={40}
+            max={260}
+            onChange={(value) =>
+              setConfig((prev) => ({
+                ...prev,
+                avatar: { ...prev.avatar, size: value },
+                layout: {
+                  ...prev.layout,
+                  avatar: {
+                    ...prev.layout.avatar,
+                    w: value,
+                    h: value,
+                  },
+                },
+              }))
+            }
+          />
+          <NumberInput
+            label={messages.controlPanel.labels.cornerRadius}
+            value={config.avatar.radius}
+            min={0}
+            max={130}
+            onChange={(value) =>
+              setConfig((prev) => ({
+                ...prev,
+                avatar: { ...prev.avatar, radius: value },
+              }))
+            }
+          />
+        </div>
+
+        <label className="space-y-1 block">
+          <span className="text-xs text-zinc-500">{messages.controlPanel.labels.customLogo}</span>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleLogoUpload}
+            className="w-full text-sm text-zinc-500 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-zinc-700 hover:file:bg-zinc-200"
+          />
+        </label>
+        {config.customLogo && (
+          <button
+            type="button"
+            onClick={() => setConfig((prev) => ({ ...prev, customLogo: null }))}
+            className="rounded-md border border-red-700/70 px-3 py-1.5 text-xs text-red-300 hover:bg-red-900/30"
+          >
+            {messages.controlPanel.labels.removeCustomLogo}
+          </button>
+        )}
+      </section>
+
+      <section className="space-y-4">
+        <h3 className="text-sm font-semibold text-zinc-700">{messages.controlPanel.sections.stats}</h3>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { key: 'showStars' as const, label: messages.controlPanel.stats.stars },
+            { key: 'showForks' as const, label: messages.controlPanel.stats.forks },
+            { key: 'showIssues' as const, label: messages.controlPanel.stats.issues },
+          ].map((item) => (
+            <label key={item.key} className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-2 py-1.5">
+              <span className="text-xs text-zinc-600">{item.label}</span>
+              <input
+                type="checkbox"
+                checked={config.stats[item.key]}
+                onChange={(event) =>
+                  setConfig((prev) => ({
+                    ...prev,
+                    stats: {
+                      ...prev.stats,
+                      [item.key]: event.target.checked,
+                    },
+                  }))
+                }
+                className="h-4 w-4 rounded border-zinc-300 bg-white"
+              />
+            </label>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <NumberInput
+            label={messages.controlPanel.labels.itemWidth}
+            value={config.stats.itemWidth}
+            min={80}
+            max={260}
+            onChange={(value) =>
+              setConfig((prev) => ({
+                ...prev,
+                stats: { ...prev.stats, itemWidth: value },
+              }))
+            }
+          />
+          <NumberInput
+            label={messages.controlPanel.labels.itemHeight}
+            value={config.stats.itemHeight}
+            min={40}
+            max={120}
+            onChange={(value) =>
+              setConfig((prev) => ({
+                ...prev,
+                stats: { ...prev.stats, itemHeight: value },
+              }))
+            }
+          />
+          <NumberInput
+            label={messages.controlPanel.labels.gap}
+            value={config.stats.gap}
+            min={0}
+            max={80}
+            onChange={(value) =>
+              setConfig((prev) => ({
+                ...prev,
+                stats: { ...prev.stats, gap: value },
+              }))
+            }
+          />
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <h3 className="text-sm font-semibold text-zinc-700">{messages.controlPanel.sections.badges}</h3>
+        <label className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2">
+          <span className="text-xs text-zinc-600">{messages.controlPanel.labels.showBadges}</span>
+          <input
+            type="checkbox"
+            checked={config.badge.visible}
+            onChange={(event) =>
+              setConfig((prev) => ({
+                ...prev,
+                badge: { ...prev.badge, visible: event.target.checked },
+              }))
+            }
+            className="h-4 w-4 rounded border-zinc-300 bg-white"
+          />
+        </label>
+
+        <SelectInput
+          label={messages.controlPanel.labels.badgeStyle}
+          value={config.badge.style}
+          options={BADGE_STYLE_OPTIONS.map((style) => ({ value: style.id, label: messages.options.badgeStyle[style.id] }))}
+          onChange={(value) =>
+            setConfig((prev) => ({
+              ...prev,
+              badge: { ...prev.badge, style: value as CardConfig['badge']['style'] },
+            }))
+          }
+        />
+
+        <div className="grid grid-cols-2 gap-3">
+          <NumberInput
+            label={messages.controlPanel.labels.fontSize}
+            value={config.badge.fontSize}
+            min={10}
+            max={40}
+            onChange={(value) =>
+              setConfig((prev) => ({
+                ...prev,
+                badge: { ...prev.badge, fontSize: value },
+              }))
+            }
+          />
+          <NumberInput
+            label={messages.controlPanel.labels.height}
+            value={config.badge.height}
+            min={24}
+            max={80}
+            onChange={(value) =>
+              setConfig((prev) => ({
+                ...prev,
+                badge: { ...prev.badge, height: value },
+              }))
+            }
+          />
+          <NumberInput
+            label={messages.controlPanel.labels.paddingX}
+            value={config.badge.paddingX}
+            min={4}
+            max={40}
+            onChange={(value) =>
+              setConfig((prev) => ({
+                ...prev,
+                badge: { ...prev.badge, paddingX: value },
+              }))
+            }
+          />
+          <NumberInput
+            label={messages.controlPanel.labels.gap}
+            value={config.badge.gap}
+            min={0}
+            max={60}
+            onChange={(value) =>
+              setConfig((prev) => ({
+                ...prev,
+                badge: { ...prev.badge, gap: value },
+              }))
+            }
+          />
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <h3 className="text-sm font-semibold text-zinc-700">{messages.controlPanel.sections.textOverride}</h3>
+        <label className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2">
+          <span className="text-xs text-zinc-600">{messages.controlPanel.labels.showOwner}</span>
+          <input
+            type="checkbox"
+            checked={config.text.showOwner}
+            onChange={(event) =>
+              setConfig((prev) => ({
+                ...prev,
+                text: { ...prev.text, showOwner: event.target.checked },
+              }))
+            }
+            className="h-4 w-4 rounded border-zinc-300 bg-white"
+          />
+        </label>
+
+        <label className="space-y-1 block">
+          <span className="text-xs text-zinc-500">{messages.controlPanel.labels.title}</span>
+          <input
+            type="text"
+            value={config.text.customTitle}
+            onChange={(event) =>
+              setConfig((prev) => ({
+                ...prev,
+                text: { ...prev.text, customTitle: event.target.value },
+              }))
+            }
+            className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800 outline-none focus:border-indigo-500"
+          />
+        </label>
+
+        <label className="space-y-1 block">
+          <span className="text-xs text-zinc-500">{messages.controlPanel.labels.description}</span>
+          <textarea
+            value={config.text.customDescription}
+            onChange={(event) =>
+              setConfig((prev) => ({
+                ...prev,
+                text: { ...prev.text, customDescription: event.target.value },
+              }))
+            }
+            rows={3}
+            className="w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800 outline-none focus:border-indigo-500"
+          />
+        </label>
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-zinc-700">{messages.controlPanel.sections.layout}</h3>
+          <button
+            type="button"
+            onClick={onResetLayout}
+            className="rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-100"
+          >
+            {messages.controlPanel.labels.resetLayout}
+          </button>
+        </div>
+
+        <p className="text-xs text-zinc-500">
+          {messages.controlPanel.labels.selectedBlocks.replace('{count}', String(selectedBlocks.length))}
+        </p>
+        <p className="text-xs text-zinc-500">{messages.controlPanel.labels.multiSelectHint}</p>
+
+        <SelectInput
+          label={messages.controlPanel.labels.primaryBlock}
+          value={primaryBlock}
+          options={BLOCK_ORDER.map((block) => ({ value: block, label: messages.options.layoutBlock[block] }))}
+          onChange={(value) => {
+            const block = value as LayoutBlockId;
+            const nextSelection = selectedBlocks.includes(block) ? selectedBlocks : [...selectedBlocks, block];
+            setSelection(nextSelection, block);
+          }}
+        />
+
+        <div className="grid grid-cols-[1fr_auto] gap-2">
+          <SelectInput
+            label={messages.controlPanel.labels.alignAction}
+            value={alignAction}
+            options={ALIGN_ACTIONS.map((action) => ({ value: action, label: messages.options.alignAction[action] }))}
+            onChange={(value) => setAlignAction(value as AlignAction)}
+          />
+          <button
+            type="button"
+            disabled={selectedBlocks.length < 2}
+            onClick={() => onAlign(alignAction)}
+            className="mt-[22px] rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {messages.controlPanel.labels.apply}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-[1fr_auto] gap-2">
+          <SelectInput
+            label={messages.controlPanel.labels.distributeAction}
+            value={distributeAxis}
+            options={DISTRIBUTE_OPTIONS.map((axis) => ({ value: axis, label: messages.options.distributeAxis[axis] }))}
+            onChange={(value) => setDistributeAxis(value as DistributeAxis)}
+          />
+          <button
+            type="button"
+            disabled={selectedBlocks.length < 3}
+            onClick={() => onDistribute(distributeAxis)}
+            className="mt-[22px] rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {messages.controlPanel.labels.apply}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <NumberInput
+            label={messages.controlPanel.labels.x}
+            value={config.layout[primaryBlock].x}
+            min={0}
+            max={1200}
+            onChange={(value) => updateLayout(primaryBlock, { x: value })}
+          />
+          <NumberInput
+            label={messages.controlPanel.labels.y}
+            value={config.layout[primaryBlock].y}
+            min={0}
+            max={630}
+            onChange={(value) => updateLayout(primaryBlock, { y: value })}
+          />
+        </div>
+
+        {(primaryBlock === 'title' || primaryBlock === 'description') && (
+          <div className="grid grid-cols-2 gap-3">
+            <NumberInput
+              label={messages.controlPanel.labels.width}
+              value={config.layout[primaryBlock].w}
+              min={100}
+              max={1200}
+              onChange={(value) => updateLayout(primaryBlock, { w: value })}
+            />
+            <NumberInput
+              label={messages.controlPanel.labels.height}
+              value={config.layout[primaryBlock].h}
+              min={40}
+              max={400}
+              onChange={(value) => updateLayout(primaryBlock, { h: value })}
             />
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Custom Logo Upload */}
-      <div className="space-y-4">
-         <label className="flex items-center gap-2 text-sm font-semibold text-zinc-300">
-            <Upload className="w-4 h-4 text-cyan-400" />
-            Custom Project Logo
-         </label>
-         <div className="relative">
-            <input 
-              type="file" 
-              accept="image/*"
-              onChange={handleFileChange}
-              className="w-full text-sm text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-zinc-800 file:text-zinc-300 hover:file:bg-zinc-700"
-            />
-            {config.customLogo && (
-               <button 
-                 onClick={() => handleChange('customLogo', null)}
-                 className="absolute right-0 top-0 text-xs text-red-400 hover:text-red-300 py-2 px-3"
-               >
-                 Remove
-               </button>
-            )}
-         </div>
-      </div>
+      <section className="space-y-4">
+        <h3 className="text-sm font-semibold text-zinc-700">{messages.controlPanel.sections.presets}</h3>
+        <button
+          type="button"
+          onClick={onExportPreset}
+          className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 transition-colors hover:bg-zinc-100"
+        >
+          {messages.controlPanel.labels.exportPreset}
+        </button>
 
-      {/* Avatar Background */}
-      <div className="space-y-4">
-         <label className="flex items-center gap-2 text-sm font-semibold text-zinc-300">
-            Avatar Background
-         </label>
-         <div className="grid grid-cols-3 gap-2">
-            {[
-              AvatarBackgroundType.None,
-              AvatarBackgroundType.Circle,
-              AvatarBackgroundType.Rounded,
-            ].map((type) => (
-               <button
-                 key={type}
-                 onClick={() => handleChange('avatarBackground', type)}
-                 className={`px-2 py-1.5 rounded text-xs border transition-all ${
-                    config.avatarBackground === type
-                    ? 'bg-cyan-900/30 border-cyan-500 text-cyan-200'
-                    : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800'
-                 }`}
-               >
-                 {type}
-               </button>
-            ))}
-         </div>
-         {config.avatarBackground === AvatarBackgroundType.Rounded && (
-           <div className="space-y-2">
-             <div className="flex items-center justify-between text-xs text-zinc-500">
-               <span>Corner Radius</span>
-               <span>{Math.round(config.avatarRadius)}px</span>
-             </div>
-             <input
-               type="range"
-               min={0}
-               max={60}
-               value={config.avatarRadius}
-               onChange={(e) => handleChange('avatarRadius', Number(e.target.value))}
-               className="w-full"
-             />
-           </div>
-         )}
-      </div>
-
-      {/* Badge Styles */}
-      <div className="space-y-4">
-         <label className="flex items-center gap-2 text-sm font-semibold text-zinc-300">
-            <Tag className="w-4 h-4 text-orange-400" />
-            Language Badges
-         </label>
-         <div className="grid grid-cols-3 gap-2">
-            {Object.values(BadgeStyle).map((b) => (
-               <button
-                 key={b}
-                 onClick={() => handleChange('badgeStyle', b)}
-                 className={`px-2 py-1.5 rounded text-xs border transition-all ${
-                    config.badgeStyle === b
-                    ? 'bg-orange-900/30 border-orange-500 text-orange-200'
-                    : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800'
-                 }`}
-               >
-                 {b}
-               </button>
-            ))}
-         </div>
-      </div>
-
-      {/* Visibility Toggles */}
-      <div className="space-y-4">
-        <label className="flex items-center gap-2 text-sm font-semibold text-zinc-300">
-          <Eye className="w-4 h-4 text-amber-400" />
-          Visibility
+        <label className="block">
+          <span className="mb-1 block text-xs text-zinc-500">{messages.controlPanel.labels.importPreset}</span>
+          <input
+            type="file"
+            accept="application/json,.json"
+            onChange={handlePresetImport}
+            className="w-full text-sm text-zinc-500 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-zinc-700 hover:file:bg-zinc-200"
+          />
         </label>
-        <div className="grid grid-cols-2 gap-2">
-           {[
-             { key: 'showOwner', label: 'Owner Name' },
-             { key: 'showAvatar', label: 'Avatar' },
-             { key: 'showStars', label: 'Stars' },
-             { key: 'showForks', label: 'Forks' },
-             { key: 'showIssues', label: 'Issues' },
-             { key: 'showBadges', label: 'Languages' }
-           ].map((item) => (
-             <label key={item.key} className="flex items-center justify-between p-2.5 bg-zinc-900/50 rounded-lg border border-zinc-800 cursor-pointer hover:border-zinc-700">
-                <span className="text-xs text-zinc-300">{item.label}</span>
-                <input 
-                  type="checkbox"
-                  checked={(config as any)[item.key]}
-                  onChange={(e) => handleChange(item.key as keyof CardConfig, e.target.checked)}
-                  className="w-4 h-4 rounded border-zinc-600 text-indigo-600 focus:ring-indigo-600 bg-zinc-800"
-                />
-             </label>
-           ))}
-        </div>
-      </div>
-
-      {/* Text Overrides */}
-      <div className="space-y-4 border-t border-zinc-800 pt-6">
-          <label className="flex items-center gap-2 text-sm font-semibold text-zinc-300">
-             <Layout className="w-4 h-4 text-blue-400" />
-             Content Overrides
-          </label>
-          <div className="space-y-3">
-            <div>
-                <span className="text-xs text-zinc-500 mb-1 block">Title</span>
-                <input 
-                    type="text" 
-                    value={config.customTitle}
-                    onChange={(e) => handleChange('customTitle', e.target.value)}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
-                />
-            </div>
-            <div>
-                <span className="text-xs text-zinc-500 mb-1 block">Description</span>
-                <textarea 
-                    value={config.customDescription}
-                    onChange={(e) => handleChange('customDescription', e.target.value)}
-                    rows={3}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-100 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none resize-none"
-                />
-            </div>
-          </div>
-      </div>
-
+      </section>
     </div>
   );
 };
