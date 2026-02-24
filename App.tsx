@@ -23,6 +23,7 @@ const LOCALE_STORAGE_KEY = 'repo-cardify-locale';
 const EXPORT_WIDTH = 1200;
 const EXPORT_HEIGHT = 630;
 const JPG_EXPORT_QUALITY = 0.82;
+const REPO_SOURCE_URL = 'https://github.com/ZyphrZero/repo-cardify';
 
 const normalizeSelection = (blocks: LayoutBlockId[], primary?: LayoutBlockId): LayoutBlockId[] => {
   const unique = Array.from(new Set(blocks));
@@ -309,6 +310,18 @@ export default function App() {
           resolvedUiTheme === 'light' ? 'app-ui-light' : 'app-ui-dark'
         }`}
       >
+        <a
+          href={REPO_SOURCE_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="app-surface app-border fixed right-0 top-0 z-40 rounded-bl-lg border-b border-l px-3 py-1.5 text-[11px] font-medium text-zinc-700 shadow-sm backdrop-blur-md transition-colors hover:bg-zinc-50"
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <Github className="h-3.5 w-3.5" />
+            github.com/ZyphrZero/repo-cardify
+          </span>
+        </a>
+
         <header className="relative z-20 app-surface border-b app-border backdrop-blur-md">
           <div className="mx-auto flex w-full max-w-[1360px] items-center justify-between gap-4 px-4 py-4 lg:px-8">
             <div className="flex items-center gap-3">
