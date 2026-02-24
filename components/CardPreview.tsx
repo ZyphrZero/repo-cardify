@@ -49,6 +49,37 @@ const patternFunctions: Partial<Record<PatternId, (color: string, opacity: numbe
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
+const COMPACT_NUMBER_UNITS = [
+  { value: 1_000_000_000, suffix: 'b' },
+  { value: 1_000_000, suffix: 'm' },
+  { value: 1_000, suffix: 'k' },
+] as const;
+
+const trimTrailingZeros = (value: string) =>
+  value.replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1');
+
+const formatCompactNumber = (value: number) => {
+  const absValue = Math.abs(value);
+
+  for (const unit of COMPACT_NUMBER_UNITS) {
+    if (absValue >= unit.value) {
+      const scaled = value / unit.value;
+      const absScaled = Math.abs(scaled);
+      const decimals = absScaled >= 100 ? 0 : absScaled >= 10 ? 1 : 2;
+      return `${trimTrailingZeros(scaled.toFixed(decimals))}${unit.suffix}`;
+    }
+  }
+
+  return `${value}`;
+};
+
+const formatStatValue = (value: number, format: CardConfig['stats']['valueFormat']) => {
+  if (format === 'full') {
+    return `${value}`;
+  }
+  return formatCompactNumber(value);
+};
+
 const appendEllipsis = (line: string, maxWidth: number, fontSize: number) => {
   let value = line.trimEnd();
   if (!value) return '...';
@@ -378,7 +409,7 @@ export const CardPreview = forwardRef<SVGSVGElement, CardPreviewProps>(({ data, 
                   fontWeight="700"
                   textAnchor="middle"
                 >
-                  {stat.value}
+                  {formatStatValue(stat.value, config.stats.valueFormat)}
                 </text>
                 <text
                   x={config.stats.itemWidth / 2}

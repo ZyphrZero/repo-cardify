@@ -1,4 +1,4 @@
-import type { AvatarShapeId, BadgeStyleId, FontId, LayoutBlockId, PatternId, ThemeId } from './types';
+import type { AvatarShapeId, BadgeStyleId, FontId, LayoutBlockId, PatternId, StatsValueFormatId, ThemeId } from './types';
 
 export type UiThemeMode = 'system' | 'light' | 'dark';
 export type Locale = 'en' | 'zh-CN';
@@ -23,6 +23,7 @@ interface LocaleMessages {
     emptyCanvasHint: string;
     readyToExportHint: string;
     downloadPng: string;
+    downloadJpg: string;
     downloadSvg: string;
     failedFetchRepo: string;
     failedImportPreset: string;
@@ -90,6 +91,7 @@ interface LocaleMessages {
       width: string;
       itemWidth: string;
       itemHeight: string;
+      statsValueFormat: string;
       importPreset: string;
       exportPreset: string;
     };
@@ -120,6 +122,7 @@ interface LocaleMessages {
     pattern: Record<PatternId, string>;
     avatarShape: Record<AvatarShapeId, string>;
     badgeStyle: Record<BadgeStyleId, string>;
+    statsValueFormat: Record<StatsValueFormatId, string>;
     layoutBlock: Record<LayoutBlockId, string>;
     alignAction: Record<AlignAction, string>;
     distributeAxis: Record<DistributeAxis, string>;
@@ -145,6 +148,7 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
       emptyCanvasHint: 'Enter a repository to generate and edit a card.',
       readyToExportHint: 'Use drag and alignment tools, then export your final image.',
       downloadPng: 'PNG',
+      downloadJpg: 'JPG',
       downloadSvg: 'SVG',
       failedFetchRepo: 'Failed to fetch repository.',
       failedImportPreset: 'Failed to import preset.',
@@ -213,6 +217,7 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
         width: 'Width',
         itemWidth: 'Item Width',
         itemHeight: 'Item Height',
+        statsValueFormat: 'Number Format',
         importPreset: 'Import Preset',
         exportPreset: 'Export JSON Preset',
       },
@@ -281,6 +286,10 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
         outline: 'Outline',
         minimal: 'Minimal',
       },
+      statsValueFormat: {
+        compact: 'Compact (21.1k)',
+        full: 'Full (21100)',
+      },
       layoutBlock: {
         avatar: 'Avatar',
         title: 'Title',
@@ -320,6 +329,7 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
       emptyCanvasHint: '输入仓库后可生成并编辑卡片。',
       readyToExportHint: '可先用拖拽和对齐工具调整布局，再导出图片。',
       downloadPng: 'PNG',
+      downloadJpg: 'JPG',
       downloadSvg: 'SVG',
       failedFetchRepo: '获取仓库失败。',
       failedImportPreset: '导入预设失败。',
@@ -388,6 +398,7 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
         width: '宽度',
         itemWidth: '单项宽度',
         itemHeight: '单项高度',
+        statsValueFormat: '数字格式',
         importPreset: '导入预设',
         exportPreset: '导出 JSON 预设',
       },
@@ -455,6 +466,10 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
         pill: '胶囊',
         outline: '描边',
         minimal: '极简',
+      },
+      statsValueFormat: {
+        compact: '简写 (21.1k)',
+        full: '完整 (21100)',
       },
       layoutBlock: {
         avatar: '头像',

@@ -1,70 +1,103 @@
 export const CANVAS_WIDTH = 1200;
 export const CANVAS_HEIGHT = 630;
 
-export type ThemeId = 'gradient' | 'solid' | 'simple' | 'dark';
-export type FontId = 'inter' | 'mono' | 'serif' | 'poppins' | 'playfair' | 'oswald';
+export type ThemeId = "gradient" | "solid" | "simple" | "dark";
+export type FontId =
+  | "inter"
+  | "mono"
+  | "serif"
+  | "poppins"
+  | "playfair"
+  | "oswald";
 export type PatternId =
-  | 'none'
-  | 'signal'
-  | 'charlie-brown'
-  | 'formal-invitation'
-  | 'plus'
-  | 'circuit-board'
-  | 'overlapping-hexagons'
-  | 'brick-wall'
-  | 'floating-cogs'
-  | 'diagonal-stripes';
-export type BadgeStyleId = 'pill' | 'outline' | 'minimal';
-export type AvatarShapeId = 'none' | 'circle' | 'rounded';
-export type LayoutBlockId = 'avatar' | 'title' | 'description' | 'stats' | 'badges';
+  | "none"
+  | "signal"
+  | "charlie-brown"
+  | "formal-invitation"
+  | "plus"
+  | "circuit-board"
+  | "overlapping-hexagons"
+  | "brick-wall"
+  | "floating-cogs"
+  | "diagonal-stripes";
+export type BadgeStyleId = "pill" | "outline" | "minimal";
+export type AvatarShapeId = "none" | "circle" | "rounded";
+export type StatsValueFormatId = "compact" | "full";
+export type LayoutBlockId =
+  | "avatar"
+  | "title"
+  | "description"
+  | "stats"
+  | "badges";
 
 export const THEME_OPTIONS: Array<{ id: ThemeId; label: string }> = [
-  { id: 'gradient', label: 'Gradient' },
-  { id: 'solid', label: 'Solid' },
-  { id: 'simple', label: 'Simple' },
-  { id: 'dark', label: 'Dark' },
+  { id: "gradient", label: "Gradient" },
+  { id: "solid", label: "Solid" },
+  { id: "simple", label: "Simple" },
+  { id: "dark", label: "Dark" },
 ];
 
-export const FONT_OPTIONS: Array<{ id: FontId; label: string; family: string }> = [
-  { id: 'inter', label: 'Inter', family: "'Inter', sans-serif" },
-  { id: 'mono', label: 'JetBrains Mono', family: "'JetBrains Mono', monospace" },
-  { id: 'serif', label: 'Merriweather', family: "'Merriweather', serif" },
-  { id: 'poppins', label: 'Poppins', family: "'Poppins', sans-serif" },
-  { id: 'playfair', label: 'Playfair Display', family: "'Playfair Display', serif" },
-  { id: 'oswald', label: 'Oswald', family: "'Oswald', sans-serif" },
+export const FONT_OPTIONS: Array<{
+  id: FontId;
+  label: string;
+  family: string;
+}> = [
+  { id: "inter", label: "Inter", family: "'Inter', sans-serif" },
+  {
+    id: "mono",
+    label: "JetBrains Mono",
+    family: "'JetBrains Mono', monospace",
+  },
+  { id: "serif", label: "Merriweather", family: "'Merriweather', serif" },
+  { id: "poppins", label: "Poppins", family: "'Poppins', sans-serif" },
+  {
+    id: "playfair",
+    label: "Playfair Display",
+    family: "'Playfair Display', serif",
+  },
+  { id: "oswald", label: "Oswald", family: "'Oswald', sans-serif" },
 ];
 
 export const PATTERN_OPTIONS: Array<{ id: PatternId; label: string }> = [
-  { id: 'none', label: 'None' },
-  { id: 'signal', label: 'Signal' },
-  { id: 'charlie-brown', label: 'Charlie Brown' },
-  { id: 'formal-invitation', label: 'Formal Invitation' },
-  { id: 'plus', label: 'Plus' },
-  { id: 'circuit-board', label: 'Circuit Board' },
-  { id: 'overlapping-hexagons', label: 'Overlapping Hexagons' },
-  { id: 'brick-wall', label: 'Brick Wall' },
-  { id: 'floating-cogs', label: 'Floating Cogs' },
-  { id: 'diagonal-stripes', label: 'Diagonal Stripes' },
+  { id: "none", label: "None" },
+  { id: "signal", label: "Signal" },
+  { id: "charlie-brown", label: "Charlie Brown" },
+  { id: "formal-invitation", label: "Formal Invitation" },
+  { id: "plus", label: "Plus" },
+  { id: "circuit-board", label: "Circuit Board" },
+  { id: "overlapping-hexagons", label: "Overlapping Hexagons" },
+  { id: "brick-wall", label: "Brick Wall" },
+  { id: "floating-cogs", label: "Floating Cogs" },
+  { id: "diagonal-stripes", label: "Diagonal Stripes" },
 ];
 
 export const BADGE_STYLE_OPTIONS: Array<{ id: BadgeStyleId; label: string }> = [
-  { id: 'pill', label: 'Pill' },
-  { id: 'outline', label: 'Outline' },
-  { id: 'minimal', label: 'Minimal' },
+  { id: "pill", label: "Pill" },
+  { id: "outline", label: "Outline" },
+  { id: "minimal", label: "Minimal" },
 ];
 
-export const AVATAR_SHAPE_OPTIONS: Array<{ id: AvatarShapeId; label: string }> = [
-  { id: 'none', label: 'None' },
-  { id: 'circle', label: 'Circle' },
-  { id: 'rounded', label: 'Rounded' },
+export const AVATAR_SHAPE_OPTIONS: Array<{ id: AvatarShapeId; label: string }> =
+  [
+    { id: "none", label: "None" },
+    { id: "circle", label: "Circle" },
+    { id: "rounded", label: "Rounded" },
+  ];
+
+export const STATS_VALUE_FORMAT_OPTIONS: Array<{
+  id: StatsValueFormatId;
+  label: string;
+}> = [
+  { id: "compact", label: "Compact" },
+  { id: "full", label: "Full" },
 ];
 
 export const LAYOUT_BLOCK_LABELS: Record<LayoutBlockId, string> = {
-  avatar: 'Avatar',
-  title: 'Title',
-  description: 'Description',
-  stats: 'Stats Row',
-  badges: 'Badges Row',
+  avatar: "Avatar",
+  title: "Title",
+  description: "Description",
+  stats: "Stats Row",
+  badges: "Badges Row",
 };
 
 export interface RepoData {
@@ -122,6 +155,7 @@ export interface StatsConfig {
   showStars: boolean;
   showForks: boolean;
   showIssues: boolean;
+  valueFormat: StatsValueFormatId;
   itemWidth: number;
   itemHeight: number;
   gap: number;
@@ -171,22 +205,22 @@ export const createDefaultLayout = (): LayoutConfig => ({
 });
 
 export const createDefaultCardConfig = (): CardConfig => ({
-  theme: 'gradient',
-  font: 'inter',
+  theme: "gradient",
+  font: "inter",
   colors: {
-    background: '#4f46e5',
-    accent: '#09090b',
+    background: "#4f46e5",
+    accent: "#09090b",
   },
   pattern: {
-    id: 'none',
-    scale: 1,
-    opacity: 0.2,
+    id: "none",
+    scale: 1.8,
+    opacity: 0.1,
     offsetX: 0,
     offsetY: 0,
   },
   badge: {
     visible: true,
-    style: 'pill',
+    style: "pill",
     fontSize: 16,
     height: 40,
     paddingX: 18,
@@ -194,7 +228,7 @@ export const createDefaultCardConfig = (): CardConfig => ({
   },
   avatar: {
     visible: true,
-    shape: 'rounded',
+    shape: "rounded",
     size: 120,
     radius: 24,
   },
@@ -202,14 +236,15 @@ export const createDefaultCardConfig = (): CardConfig => ({
     showStars: true,
     showForks: true,
     showIssues: true,
+    valueFormat: "full",
     itemWidth: 140,
     itemHeight: 60,
     gap: 20,
   },
   text: {
     showOwner: true,
-    customTitle: '',
-    customDescription: '',
+    customTitle: "",
+    customDescription: "",
     ownerSize: 32,
     titleSize: 64,
     descriptionSize: 36,

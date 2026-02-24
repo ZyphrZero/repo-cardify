@@ -16,9 +16,13 @@ import { exportConfigPreset, importConfigPreset } from './services/presetService
 import { CardConfig, LayoutBlockId, RepoData, createDefaultCardConfig } from './types';
 
 type ResolvedUiTheme = 'light' | 'dark';
+type RasterImageFormat = 'png' | 'jpg';
 
 const UI_THEME_STORAGE_KEY = 'repo-cardify-ui-theme-mode';
 const LOCALE_STORAGE_KEY = 'repo-cardify-locale';
+const EXPORT_WIDTH = 1200;
+const EXPORT_HEIGHT = 630;
+const JPG_EXPORT_QUALITY = 0.82;
 
 const normalizeSelection = (blocks: LayoutBlockId[], primary?: LayoutBlockId): LayoutBlockId[] => {
   const unique = Array.from(new Set(blocks));
@@ -185,6 +189,87 @@ export default function App() {
     return source;
   }, [config.font, repoData]);
 
+  const renderSvgToCanvas = useCallback(async (): Promise<HTMLCanvasElement | null> => {
+    const source = await serializeSvg();
+    if (!source) return null;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = EXPORT_WIDTH;
+    canvas.height = EXPORT_HEIGHT;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      throw new Error('Canvas context is unavailable.');
+    }
+
+    const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
+    await new Promise<void>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => {
+        context.fillStyle = '#18181b';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(image, 0, 0);
+        resolve();
+      };
+      image.onerror = () => {
+        reject(new Error('Failed to render SVG to canvas.'));
+      };
+      image.src = svgDataUrl;
+    });
+
+    return canvas;
+  }, [serializeSvg]);
+
+  const canvasToBlob = useCallback(
+    (canvas: HTMLCanvasElement, mimeType: string, quality?: number): Promise<Blob> =>
+      new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+            return;
+          }
+          reject(new Error('Failed to encode canvas to image blob.'));
+        }, mimeType, quality);
+      }),
+    []
+  );
+
+  const downloadRasterImage = useCallback(
+    async (format: RasterImageFormat) => {
+      setLoading(true);
+      try {
+        const canvas = await renderSvgToCanvas();
+        if (!canvas) return;
+
+        const isJpeg = format === 'jpg';
+        const mimeType = isJpeg ? 'image/jpeg' : 'image/png';
+        const blob = await canvasToBlob(canvas, mimeType, isJpeg ? JPG_EXPORT_QUALITY : undefined);
+
+        const url = URL.createObjectURL(blob);
+        const downloadLink = document.createElement('a');
+        downloadLink.href = url;
+        downloadLink.download = `${repoData?.name || 'social-card'}.${format}`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error(err);
+        setError(messages.app.failedDownload);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [canvasToBlob, messages.app.failedDownload, renderSvgToCanvas, repoData]
+  );
+
+  const downloadPng = useCallback(() => {
+    void downloadRasterImage('png');
+  }, [downloadRasterImage]);
+
+  const downloadJpg = useCallback(() => {
+    void downloadRasterImage('jpg');
+  }, [downloadRasterImage]);
+
   const downloadSvg = useCallback(async () => {
     setLoading(true);
     try {
@@ -199,49 +284,6 @@ export default function App() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error(err);
-      setError(messages.app.failedDownload);
-    } finally {
-      setLoading(false);
-    }
-  }, [serializeSvg, messages.app.failedDownload, repoData]);
-
-  const downloadImage = useCallback(async () => {
-    setLoading(true);
-    try {
-      const source = await serializeSvg();
-      if (!source) return;
-
-      const canvas = document.createElement('canvas');
-      canvas.width = 1200;
-      canvas.height = 630;
-      const context = canvas.getContext('2d');
-      if (!context) return;
-
-      const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
-
-      await new Promise<void>((resolve, reject) => {
-        const image = new Image();
-        image.onload = () => {
-          context.fillStyle = '#18181b';
-          context.fillRect(0, 0, canvas.width, canvas.height);
-          context.drawImage(image, 0, 0);
-
-          const pngUrl = canvas.toDataURL('image/png');
-          const downloadLink = document.createElement('a');
-          downloadLink.href = pngUrl;
-          downloadLink.download = `${repoData?.name || 'social-card'}.png`;
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          document.body.removeChild(downloadLink);
-          resolve();
-        };
-        image.onerror = () => {
-          reject(new Error('Failed to render SVG to canvas.'));
-        };
-        image.src = svgDataUrl;
-      });
     } catch (err) {
       console.error(err);
       setError(messages.app.failedDownload);
@@ -310,7 +352,6 @@ export default function App() {
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.16em] text-zinc-500">{messages.app.repositoryWorkspace}</p>
-                  <h2 className="mt-1 text-lg font-semibold text-zinc-900">{messages.app.repositoryHint}</h2>
                 </div>
                 <span className="rounded-md bg-zinc-100 px-2.5 py-1 text-[11px] text-zinc-500">
                   {repoData ? messages.app.statusLoaded : messages.app.statusWaiting}
@@ -381,18 +422,26 @@ export default function App() {
                   <button
                     type="button"
                     onClick={downloadSvg}
-                    className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50"
+                    className="flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-zinc-700"
                   >
                     <Download className="h-4 w-4" />
                     {messages.app.downloadSvg}
                   </button>
                   <button
                     type="button"
-                    onClick={downloadImage}
+                    onClick={downloadPng}
                     className="flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-zinc-700"
                   >
                     <Download className="h-4 w-4" />
                     {messages.app.downloadPng}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={downloadJpg}
+                    className="flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-zinc-700"
+                  >
+                    <Download className="h-4 w-4" />
+                    {messages.app.downloadJpg}
                   </button>
                 </div>
               </div>

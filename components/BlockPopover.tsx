@@ -4,6 +4,7 @@ import {
   BADGE_STYLE_OPTIONS,
   CardConfig,
   LayoutBlockId,
+  STATS_VALUE_FORMAT_OPTIONS,
   createDefaultCardConfig,
 } from '../types';
 import { useI18n } from './I18nContext';
@@ -187,6 +188,20 @@ const StatsContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<Rea
         </label>
       ))}
     </div>
+    <SelectInput
+      label={messages.controlPanel.labels.statsValueFormat}
+      value={config.stats.valueFormat}
+      options={STATS_VALUE_FORMAT_OPTIONS.map((option) => ({
+        value: option.id,
+        label: messages.options.statsValueFormat[option.id],
+      }))}
+      onChange={(v) =>
+        setConfig((prev) => ({
+          ...prev,
+          stats: { ...prev.stats, valueFormat: v as CardConfig['stats']['valueFormat'] },
+        }))
+      }
+    />
     <NumberInput
       label={messages.controlPanel.labels.gap}
       value={config.stats.gap}

@@ -441,7 +441,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                 onClick={(event) => onBlockClick(event, block)}
               >
                 {showLabels && (
-                  <span className="pointer-events-none absolute bottom-full left-0 mb-1 rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-zinc-700 shadow-sm">
+                  <span className="canvas-block-label pointer-events-none absolute bottom-full left-0 mb-1 rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide shadow-sm">
                     {messages.options.layoutBlock[block]}
                   </span>
                 )}

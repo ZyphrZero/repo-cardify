@@ -4,6 +4,7 @@ import {
   CardConfig,
   FONT_OPTIONS,
   PATTERN_OPTIONS,
+  STATS_VALUE_FORMAT_OPTIONS,
   THEME_OPTIONS,
   createDefaultCardConfig,
 } from '../types';
@@ -83,6 +84,11 @@ export const sanitizeCardConfig = (input: unknown): CardConfig | null => {
       showStars: isBoolean(stats.showStars) ? stats.showStars : defaults.stats.showStars,
       showForks: isBoolean(stats.showForks) ? stats.showForks : defaults.stats.showForks,
       showIssues: isBoolean(stats.showIssues) ? stats.showIssues : defaults.stats.showIssues,
+      valueFormat: pickOptionValue(
+        stats.valueFormat,
+        STATS_VALUE_FORMAT_OPTIONS,
+        defaults.stats.valueFormat
+      ),
       itemWidth: isNumber(stats.itemWidth) ? clamp(stats.itemWidth, 80, 320) : defaults.stats.itemWidth,
       itemHeight: isNumber(stats.itemHeight) ? clamp(stats.itemHeight, 40, 140) : defaults.stats.itemHeight,
       gap: isNumber(stats.gap) ? clamp(stats.gap, 0, 120) : defaults.stats.gap,

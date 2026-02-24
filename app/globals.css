@@ -1,218 +1,238 @@
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+    width: 6px;
+    height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+    background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 999px;
+    background: #d1d5db;
+    border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+    background: #9ca3af;
 }
 
 html,
 body {
-  min-height: 100%;
+    min-height: 100%;
 }
 
 body {
-  color: #111827;
+    color: #111827;
 }
 
 .app-ui-root {
-  isolation: isolate;
+    isolation: isolate;
 }
 
 /* ── 页面背景：浅色渐变 / 深色渐变 ── */
 .app-theme-bg {
-  background: linear-gradient(145deg, #f0f0f3 0%, #e8e8ed 50%, #f0f0f3 100%);
+    background: linear-gradient(145deg, #f0f0f3 0%, #e8e8ed 50%, #f0f0f3 100%);
 }
 
 .app-theme-bg.app-ui-dark {
-  background: linear-gradient(145deg, #111113 0%, #18181b 50%, #111113 100%);
+    background: linear-gradient(145deg, #111113 0%, #18181b 50%, #111113 100%);
 }
 
 /* ── 语义化颜色类 ── */
 
 .app-card {
-  background-color: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+    background-color: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .app-surface {
-  background-color: rgba(255, 255, 255, 0.85);
+    background-color: rgba(255, 255, 255, 0.85);
 }
 
 .app-surface-muted {
-  background-color: #fafafa;
+    background-color: #fafafa;
 }
 
 .app-border {
-  border-color: #e4e4e7;
+    border-color: #e4e4e7;
 }
 
 /* ── 控制面板 ── */
 
 .control-panel > section h3 {
-  letter-spacing: 0.03em;
+    letter-spacing: 0.03em;
 }
 
 .app-ui-root .control-panel > section {
-  background-color: #f4f4f5;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    background-color: #f4f4f5;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    transition:
+        box-shadow 0.2s ease,
+        border-color 0.2s ease;
 }
 
 .app-ui-root .control-panel > section:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
-.app-ui-root .control-panel :is(input[type='number'], select, textarea, input[type='text']) {
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    background-color 0.2s ease;
+.app-ui-root
+    .control-panel
+    :is(input[type="number"], select, textarea, input[type="text"]) {
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        background-color 0.2s ease;
 }
 
-.app-ui-root .control-panel :is(input[type='number'], select, textarea, input[type='text']):focus {
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+.app-ui-root
+    .control-panel
+    :is(input[type="number"], select, textarea, input[type="text"]):focus {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
 }
 
-.app-ui-root .control-panel input[type='file']::file-selector-button {
-  border-radius: 8px;
-  transition: background-color 0.15s ease;
+.app-ui-root .control-panel input[type="file"]::file-selector-button {
+    border-radius: 8px;
+    transition: background-color 0.15s ease;
 }
 
 /* ── 浅色模式 ── */
 .app-ui-light {
-  color-scheme: light;
+    color-scheme: light;
 }
 
 /* ══════════════════════════════════════════════
    深色模式
    ══════════════════════════════════════════════ */
 .app-ui-dark {
-  color-scheme: dark;
+    color-scheme: dark;
 }
 
 html:has(.app-ui-dark) {
-  background-color: #18181b;
+    background-color: #18181b;
 }
 
 html:has(.app-ui-dark) body {
-  background-color: #18181b;
+    background-color: #18181b;
 }
 
 .app-ui-dark .app-card {
-  background-color: #1c1c20;
-  border-color: rgba(255, 255, 255, 0.06);
+    background-color: #1c1c20;
+    border-color: rgba(255, 255, 255, 0.06);
 }
 
 .app-ui-dark .app-surface {
-  background-color: rgba(28, 28, 32, 0.9);
+    background-color: rgba(28, 28, 32, 0.9);
 }
 
 .app-ui-dark .app-surface-muted {
-  background-color: #1a1a1e;
+    background-color: #1a1a1e;
 }
 
 .app-ui-dark .app-border {
-  border-color: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.08);
 }
 
 .app-ui-dark .bg-zinc-100 {
-  background-color: #222226 !important;
+    background-color: #222226 !important;
 }
 
 .app-ui-dark .bg-zinc-50 {
-  background-color: #1e1e22 !important;
+    background-color: #1e1e22 !important;
 }
 
 .app-ui-dark .bg-white {
-  background-color: #28282c !important;
+    background-color: #28282c !important;
 }
 
 .app-ui-dark .border-zinc-300 {
-  border-color: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 .app-ui-dark .border-zinc-200 {
-  border-color: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 .app-ui-dark .border-zinc-100 {
-  border-color: rgba(255, 255, 255, 0.06) !important;
+    border-color: rgba(255, 255, 255, 0.06) !important;
 }
 
 .app-ui-dark .control-panel > section {
-  background-color: #222226 !important;
-  border-color: rgba(255, 255, 255, 0.06) !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
+    background-color: #222226 !important;
+    border-color: rgba(255, 255, 255, 0.06) !important;
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
 }
 
 .app-ui-dark .control-panel > section:hover {
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+    box-shadow:
+        0 2px 10px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
 }
 
-.app-ui-dark .control-panel :is(input[type='number'], select, textarea, input[type='text']):focus {
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2) !important;
+.app-ui-dark
+    .control-panel
+    :is(input[type="number"], select, textarea, input[type="text"]):focus {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2) !important;
 }
 
 .app-ui-dark .text-zinc-900 {
-  color: #fafafa !important;
+    color: #fafafa !important;
 }
 
 .app-ui-dark .text-zinc-800 {
-  color: #e4e4e7 !important;
+    color: #e4e4e7 !important;
 }
 
 .app-ui-dark .text-zinc-700 {
-  color: #d4d4d8 !important;
+    color: #d4d4d8;
 }
 
 .app-ui-dark .text-zinc-600 {
-  color: #a1a1aa !important;
+    color: #a1a1aa !important;
 }
 
 .app-ui-dark .text-zinc-500 {
-  color: #71717a !important;
+    color: #71717a !important;
 }
 
 .app-ui-dark .placeholder\:text-zinc-500::placeholder {
-  color: #71717a !important;
+    color: #71717a !important;
 }
 
 .app-ui-dark .hover\:bg-zinc-50:hover {
-  background-color: #2a2a2e !important;
+    background-color: #2a2a2e !important;
 }
 
 .app-ui-dark .hover\:bg-zinc-100:hover {
-  background-color: #2a2a2e !important;
+    background-color: #2a2a2e !important;
+}
+
+.editor-canvas .canvas-block-label {
+    color: #3f3f46;
 }
 
 .app-ui-dark .shadow-sm {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.04) !important;
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(255, 255, 255, 0.04) !important;
 }
 
 .app-ui-dark .shadow-lg {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+    box-shadow:
+        0 4px 16px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.06) !important;
 }
 
 .app-ui-dark ::-webkit-scrollbar-track {
-  background: transparent;
+    background: transparent;
 }
 
 .app-ui-dark ::-webkit-scrollbar-thumb {
-  background: #3f3f46;
+    background: #3f3f46;
 }
 
 .app-ui-dark ::-webkit-scrollbar-thumb:hover {
-  background: #52525b;
+    background: #52525b;
 }
