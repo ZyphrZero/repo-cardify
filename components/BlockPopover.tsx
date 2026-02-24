@@ -4,8 +4,10 @@ import {
   BADGE_STYLE_OPTIONS,
   CardConfig,
   LayoutBlockId,
+  STATS_STYLE_DEFAULTS,
   STATS_STYLE_OPTIONS,
   STATS_VALUE_FORMAT_OPTIONS,
+  TITLE_DISPLAY_MODE_OPTIONS,
   createDefaultCardConfig,
 } from '../types';
 import { useI18n } from './I18nContext';
@@ -139,6 +141,22 @@ const TitleContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<Rea
         className="h-4 w-4 rounded border-zinc-300 bg-white"
       />
     </label>
+    {config.text.showOwner && (
+      <SelectInput
+        label={messages.controlPanel.labels.titleDisplay}
+        value={config.text.titleDisplay}
+        options={TITLE_DISPLAY_MODE_OPTIONS.map((option) => ({
+          value: option.id,
+          label: messages.options.titleDisplay[option.id],
+        }))}
+        onChange={(v) =>
+          setConfig((prev) => ({
+            ...prev,
+            text: { ...prev.text, titleDisplay: v as CardConfig['text']['titleDisplay'] },
+          }))
+        }
+      />
+    )}
     <NumberInput
       label={messages.controlPanel.labels.ownerSize}
       value={config.text.ownerSize}
@@ -211,10 +229,13 @@ const StatsContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<Rea
         label: messages.options.statsStyle[option.id],
       }))}
       onChange={(v) =>
-        setConfig((prev) => ({
-          ...prev,
-          stats: { ...prev.stats, style: v as CardConfig['stats']['style'] },
-        }))
+        setConfig((prev) => {
+          const style = v as CardConfig['stats']['style'];
+          return {
+            ...prev,
+            stats: { ...prev.stats, style, ...STATS_STYLE_DEFAULTS[style] },
+          };
+        })
       }
     />
     <NumberInput
@@ -354,12 +375,30 @@ export const BlockPopover: React.FC<BlockPopoverProps> = ({
 
   // Measure and position
   const [pos, setPos] = React.useState<{ left: number; top: number } | null>(null);
+  const reposition = React.useCallback(() => {
+    if (!popoverRef.current) return;
+    setPos(computePosition(anchor, popoverRef.current.offsetHeight));
+  }, [anchor]);
+
+  useEffect(() => {
+    reposition();
+  }, [block, reposition]);
 
   useEffect(() => {
     if (!popoverRef.current) return;
-    const height = popoverRef.current.offsetHeight;
-    setPos(computePosition(anchor, height));
-  }, [anchor, block]);
+
+    const popover = popoverRef.current;
+    const observer = new ResizeObserver(() => {
+      reposition();
+    });
+    observer.observe(popover);
+    window.addEventListener('resize', reposition);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', reposition);
+    };
+  }, [reposition]);
 
   const Content = BLOCK_CONTENT[block];
 
@@ -372,7 +411,13 @@ export const BlockPopover: React.FC<BlockPopoverProps> = ({
     })),
     title: () => setConfig((prev) => ({
       ...prev,
-      text: { ...prev.text, titleSize: DEFAULTS.text.titleSize, showOwner: DEFAULTS.text.showOwner, ownerSize: DEFAULTS.text.ownerSize },
+      text: {
+        ...prev.text,
+        titleSize: DEFAULTS.text.titleSize,
+        showOwner: DEFAULTS.text.showOwner,
+        titleDisplay: DEFAULTS.text.titleDisplay,
+        ownerSize: DEFAULTS.text.ownerSize,
+      },
       layout: { ...prev.layout, title: { ...DEFAULTS.layout.title } },
     })),
     description: () => setConfig((prev) => ({

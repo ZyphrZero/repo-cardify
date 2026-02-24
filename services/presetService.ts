@@ -7,6 +7,7 @@ import {
   STATS_STYLE_OPTIONS,
   STATS_VALUE_FORMAT_OPTIONS,
   THEME_OPTIONS,
+  TITLE_DISPLAY_MODE_OPTIONS,
   createDefaultCardConfig,
 } from '../types';
 
@@ -38,6 +39,14 @@ export const sanitizeCardConfig = (input: unknown): CardConfig | null => {
   const stats = isObject(input.stats) ? input.stats : {};
   const text = isObject(input.text) ? input.text : {};
   const layout = isObject(input.layout) ? input.layout : {};
+  const rawTitleDisplay = text.titleDisplay;
+  const hasValidTitleDisplay =
+    isString(rawTitleDisplay) &&
+    TITLE_DISPLAY_MODE_OPTIONS.some((option) => option.id === rawTitleDisplay);
+
+  if (!hasValidTitleDisplay) return null;
+  const titleDisplay = rawTitleDisplay as CardConfig['text']['titleDisplay'];
+
   const customLogoValue = input.customLogo;
   const customLogo = isString(customLogoValue) || customLogoValue === null
     ? (customLogoValue as string | null)
@@ -100,6 +109,7 @@ export const sanitizeCardConfig = (input: unknown): CardConfig | null => {
     },
     text: {
       showOwner: isBoolean(text.showOwner) ? text.showOwner : defaults.text.showOwner,
+      titleDisplay,
       customTitle: isString(text.customTitle) ? text.customTitle : defaults.text.customTitle,
       customDescription: isString(text.customDescription) ? text.customDescription : defaults.text.customDescription,
       ownerSize: isNumber(text.ownerSize) ? clamp(text.ownerSize, 14, 80) : defaults.text.ownerSize,

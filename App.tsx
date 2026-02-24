@@ -179,15 +179,25 @@ export default function App() {
     const embeddedFontCss = await buildEmbeddedFontCss(config.font);
     source = injectEmbeddedFontStyle(source, embeddedFontCss);
 
-    if (repoData?.avatarUrl) {
-      const base64Avatar = await urlToBase64(repoData.avatarUrl);
-      if (base64Avatar.startsWith('data:')) {
-        source = source.replace(/xlink:href="[^"]+"/, `xlink:href="${base64Avatar}"`);
+    const avatarSource = config.customLogo || repoData?.avatarUrl;
+    if (avatarSource) {
+      const resolvedAvatar = avatarSource.startsWith('data:')
+        ? avatarSource
+        : await urlToBase64(avatarSource);
+
+      if (resolvedAvatar.startsWith('data:')) {
+        const svgDocument = new DOMParser().parseFromString(source, 'image/svg+xml');
+        const avatarImage = svgDocument.getElementById('card-avatar-image');
+        if (avatarImage) {
+          avatarImage.setAttribute('href', resolvedAvatar);
+          avatarImage.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', resolvedAvatar);
+          source = serializer.serializeToString(svgDocument.documentElement);
+        }
       }
     }
 
     return source;
-  }, [config.font, repoData]);
+  }, [config.customLogo, config.font, repoData]);
 
   const renderSvgToCanvas = useCallback(async (): Promise<HTMLCanvasElement | null> => {
     const source = await serializeSvg();

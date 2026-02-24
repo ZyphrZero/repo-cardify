@@ -24,6 +24,7 @@ export type BadgeStyleId = "pill" | "outline" | "minimal";
 export type AvatarShapeId = "none" | "circle" | "rounded";
 export type StatsValueFormatId = "compact" | "full";
 export type StatsStyleId = "card" | "split";
+export type TitleDisplayModeId = "split" | "inline";
 export type LayoutBlockId =
   | "avatar"
   | "title"
@@ -73,9 +74,9 @@ export const PATTERN_OPTIONS: Array<{ id: PatternId; label: string }> = [
 ];
 
 export const BADGE_STYLE_OPTIONS: Array<{ id: BadgeStyleId; label: string }> = [
+  { id: "minimal", label: "Minimal" },
   { id: "pill", label: "Pill" },
   { id: "outline", label: "Outline" },
-  { id: "minimal", label: "Minimal" },
 ];
 
 export const AVATAR_SHAPE_OPTIONS: Array<{ id: AvatarShapeId; label: string }> =
@@ -96,6 +97,33 @@ export const STATS_VALUE_FORMAT_OPTIONS: Array<{
 export const STATS_STYLE_OPTIONS: Array<{ id: StatsStyleId; label: string }> = [
   { id: "card", label: "Glass" },
   { id: "split", label: "Split" },
+];
+
+export const STATS_STYLE_DEFAULTS: Record<
+  StatsStyleId,
+  Pick<StatsConfig, 'itemWidth' | 'itemHeight' | 'gap' | 'valueSize' | 'labelSize' | 'splitRatio'>
+> = {
+  card: {
+    itemWidth: 150,
+    itemHeight: 85,
+    gap: 20,
+    valueSize: 28,
+    labelSize: 18,
+    splitRatio: 0.45,
+  },
+  split: {
+    itemWidth: 160,
+    itemHeight: 70,
+    gap: 20,
+    valueSize: 20,
+    labelSize: 18,
+    splitRatio: 0.45,
+  },
+};
+
+export const TITLE_DISPLAY_MODE_OPTIONS: Array<{ id: TitleDisplayModeId; label: string }> = [
+  { id: "split", label: "Split Lines" },
+  { id: "inline", label: "Inline" },
 ];
 
 export const LAYOUT_BLOCK_LABELS: Record<LayoutBlockId, string> = {
@@ -173,6 +201,7 @@ export interface StatsConfig {
 
 export interface TextConfig {
   showOwner: boolean;
+  titleDisplay: TitleDisplayModeId;
   customTitle: string;
   customDescription: string;
   ownerSize: number;
@@ -200,10 +229,10 @@ export interface CardConfig {
 
 const DEFAULT_LAYOUT_TEMPLATE: LayoutConfig = {
   avatar: { x: 100, y: 100, w: 120, h: 120 },
-  title: { x: 250, y: 125, w: 850, h: 150 },
+  title: { x: 250, y: 100, w: 850, h: 150 },
   description: { x: 100, y: 275, w: 1000, h: 150 },
-  stats: { x: 100, y: 455, w: 520, h: 80 },
-  badges: { x: 660, y: 455, w: 430, h: 80 },
+  stats: { x: 100, y: 464, w: 489.9996, h: 85 },
+  badges: { x: 675, y: 464, w: 483.8796, h: 72 },
 };
 
 export const createDefaultLayout = (): LayoutConfig => ({
@@ -230,11 +259,11 @@ export const createDefaultCardConfig = (): CardConfig => ({
   },
   badge: {
     visible: true,
-    style: "pill",
-    fontSize: 16,
-    height: 40,
-    paddingX: 18,
-    gap: 16,
+    style: "minimal",
+    fontSize: 28,
+    height: 72,
+    paddingX: 20,
+    gap: 20,
   },
   avatar: {
     visible: true,
@@ -248,15 +277,11 @@ export const createDefaultCardConfig = (): CardConfig => ({
     showIssues: true,
     valueFormat: "full",
     style: "card",
-    itemWidth: 140,
-    itemHeight: 60,
-    gap: 20,
-    valueSize: 20,
-    labelSize: 12,
-    splitRatio: 0.55,
+    ...STATS_STYLE_DEFAULTS.card,
   },
   text: {
     showOwner: true,
+    titleDisplay: "split",
     customTitle: "",
     customDescription: "",
     ownerSize: 32,

@@ -53,6 +53,35 @@ const CARD_STAT_GLASS_TINT: Record<'stars' | 'forks' | 'issues', string> = {
   issues: '#60a5fa',
 };
 
+const LANGUAGE_DOT_COLORS: Record<string, string> = {
+  typescript: '#3178c6',
+  javascript: '#f1e05a',
+  python: '#3572a5',
+  java: '#b07219',
+  'c++': '#f34b7d',
+  c: '#555555',
+  'c#': '#178600',
+  go: '#00add8',
+  rust: '#dea584',
+  ruby: '#701516',
+  php: '#4f5d95',
+  swift: '#f05138',
+  kotlin: '#a97bff',
+  dart: '#00b4ab',
+  scala: '#c22d40',
+  shell: '#89e051',
+  html: '#e34c26',
+  css: '#563d7c',
+  vue: '#41b883',
+  svelte: '#ff3e00',
+  'objective-c': '#438eff',
+  'objective-c++': '#6866fb',
+  'jupyter notebook': '#da5b0b',
+  mdx: '#1b1f24',
+  dockerfile: '#384d54',
+  makefile: '#427819',
+};
+
 interface GlassStatProfile {
   baseTopOpacity: number;
   baseMidOpacity: number;
@@ -64,6 +93,11 @@ interface GlassStatProfile {
   shadowOpacity: number;
   liftOpacity: number;
 }
+
+const normalizeLanguageKey = (language: string) => language.trim().toLowerCase();
+
+const getLanguageDotColor = (language: string, fallback: string) =>
+  LANGUAGE_DOT_COLORS[normalizeLanguageKey(language)] ?? fallback;
 
 const patternFunctions: Partial<Record<PatternId, (color: string, opacity: number) => string>> = {
   signal,
@@ -353,10 +387,13 @@ export const CardPreview = forwardRef<SVGSVGElement, CardPreviewProps>(({ data, 
 
   const badgeOffsets = getBadgeOffsets(data.languages, config.badge);
 
+  const shouldRenderOwner = config.text.showOwner;
+  const useInlineTitle = shouldRenderOwner && config.text.titleDisplay === 'inline';
   const ownerBaseline = config.text.ownerSize;
-  const titleBaseline = config.text.showOwner
+  const titleBaseline = shouldRenderOwner
     ? config.text.ownerSize + config.text.titleSize + 16
     : config.text.titleSize;
+  const inlineTitleBaseline = Math.max(config.text.ownerSize, config.text.titleSize);
 
   const avatarSize = clamp(config.avatar.size, 40, 260);
   const avatarRadius = clamp(config.avatar.radius, 0, avatarSize / 2);
@@ -452,6 +489,7 @@ export const CardPreview = forwardRef<SVGSVGElement, CardPreviewProps>(({ data, 
           )}
 
           <image
+            id="card-avatar-image"
             x="0"
             y="0"
             width={avatarSize}
@@ -464,14 +502,27 @@ export const CardPreview = forwardRef<SVGSVGElement, CardPreviewProps>(({ data, 
       )}
 
       <g transform={`translate(${config.layout.title.x}, ${config.layout.title.y})`}>
-        {config.text.showOwner && (
-          <text x="0" y={ownerBaseline} fill={tokens.secondaryText} fontFamily={fontFamily} fontSize={config.text.ownerSize} fontWeight="500">
-            {data.owner} /
+        {useInlineTitle ? (
+          <text x="0" y={inlineTitleBaseline} fontFamily={fontFamily}>
+            <tspan fill={tokens.secondaryText} fontSize={config.text.ownerSize} fontWeight="500">
+              {data.owner} /
+            </tspan>
+            <tspan dx="8" fill={tokens.primaryText} fontSize={config.text.titleSize} fontWeight="800">
+              {titleText}
+            </tspan>
           </text>
+        ) : (
+          <>
+            {shouldRenderOwner && (
+              <text x="0" y={ownerBaseline} fill={tokens.secondaryText} fontFamily={fontFamily} fontSize={config.text.ownerSize} fontWeight="500">
+                {data.owner} /
+              </text>
+            )}
+            <text x="0" y={titleBaseline} fill={tokens.primaryText} fontFamily={fontFamily} fontSize={config.text.titleSize} fontWeight="800">
+              {titleText}
+            </text>
+          </>
         )}
-        <text x="0" y={titleBaseline} fill={tokens.primaryText} fontFamily={fontFamily} fontSize={config.text.titleSize} fontWeight="800">
-          {titleText}
-        </text>
       </g>
 
       {descriptionLines.length > 0 && (
@@ -718,9 +769,10 @@ export const CardPreview = forwardRef<SVGSVGElement, CardPreviewProps>(({ data, 
 
             if (config.badge.style === 'minimal') {
               const dotRadius = Math.max(4, config.badge.fontSize * 0.28);
+              const dotColor = getLanguageDotColor(language, config.colors.accent);
               return (
                 <g key={language} transform={`translate(${x}, 0)`}>
-                  <circle cx={dotRadius} cy={badgeHeight / 2} r={dotRadius} fill={config.colors.accent} />
+                  <circle cx={dotRadius} cy={badgeHeight / 2} r={dotRadius} fill={dotColor} />
                   <text
                     x={dotRadius * 2 + 8}
                     y={textY}

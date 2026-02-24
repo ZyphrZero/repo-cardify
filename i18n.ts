@@ -7,6 +7,7 @@ import type {
   StatsStyleId,
   StatsValueFormatId,
   ThemeId,
+  TitleDisplayModeId,
 } from './types';
 
 export type UiThemeMode = 'system' | 'light' | 'dark';
@@ -86,6 +87,7 @@ interface LocaleMessages {
       paddingX: string;
       gap: string;
       showOwner: string;
+      titleDisplay: string;
       title: string;
       description: string;
       resetLayout: string;
@@ -137,6 +139,7 @@ interface LocaleMessages {
     badgeStyle: Record<BadgeStyleId, string>;
     statsValueFormat: Record<StatsValueFormatId, string>;
     statsStyle: Record<StatsStyleId, string>;
+    titleDisplay: Record<TitleDisplayModeId, string>;
     layoutBlock: Record<LayoutBlockId, string>;
     alignAction: Record<AlignAction, string>;
     distributeAxis: Record<DistributeAxis, string>;
@@ -217,6 +220,7 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
         paddingX: 'Padding X',
         gap: 'Gap',
         showOwner: 'Show Owner',
+        titleDisplay: 'Owner/Title Display',
         title: 'Title',
         description: 'Description',
         resetLayout: 'Reset Layout',
@@ -240,9 +244,9 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
         exportPreset: 'Export JSON Preset',
       },
       stats: {
-        stars: '星标',
-        forks: '分叉',
-        issues: '议题',
+        stars: 'Stars',
+        forks: 'Forks',
+        issues: 'Issues',
       },
     },
     popover: {
@@ -254,9 +258,9 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
       resetDefault: 'Reset to Default',
     },
     card: {
-      stars: '星标',
-      forks: '分叉',
-      issues: '议题',
+      stars: 'Stars',
+      forks: 'Forks',
+      issues: 'Issues',
     },
     options: {
       locale: {
@@ -311,6 +315,10 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
       statsStyle: {
         card: 'Glass',
         split: 'Split Badge',
+      },
+      titleDisplay: {
+        split: 'Two Lines',
+        inline: 'Single Line',
       },
       layoutBlock: {
         avatar: 'Avatar',
@@ -406,6 +414,7 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
         paddingX: '水平内边距',
         gap: '间距',
         showOwner: '显示 Owner',
+        titleDisplay: 'Owner/标题显示方式',
         title: '标题',
         description: '描述',
         resetLayout: '重置布局',
@@ -472,16 +481,16 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
         oswald: 'Oswald',
       },
       pattern: {
-        none: '无',
-        signal: '信号',
+        none: 'None',
+        signal: 'Signal',
         'charlie-brown': 'Charlie Brown',
         'formal-invitation': 'Formal Invitation',
-        plus: '加号',
-        'circuit-board': '电路板',
-        'overlapping-hexagons': '重叠六边形',
-        'brick-wall': '砖墙',
-        'floating-cogs': '浮动齿轮',
-        'diagonal-stripes': '斜条纹',
+        plus: 'Plus',
+        'circuit-board': 'Circuit Board',
+        'overlapping-hexagons': 'Overlapping Hexagons',
+        'brick-wall': 'Brick Wall',
+        'floating-cogs': 'Floating Cogs',
+        'diagonal-stripes': 'Diagonal Stripes',
       },
       avatarShape: {
         none: '无',
@@ -500,6 +509,10 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
       statsStyle: {
         card: '高级玻璃',
         split: '分段徽章',
+      },
+      titleDisplay: {
+        split: '上下两行',
+        inline: '单行',
       },
       layoutBlock: {
         avatar: '头像',
