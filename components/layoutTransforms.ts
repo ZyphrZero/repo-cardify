@@ -7,7 +7,12 @@ import {
   LayoutRect,
   RepoData,
 } from '../types';
-import { estimateTextWidth, getBadgeWidth, getVisibleStats } from './cardMetrics';
+import {
+  estimateTextWidth,
+  getBadgeWidth,
+  getVisibleBadgeLanguages,
+  getVisibleStats,
+} from './cardMetrics';
 
 export type AlignAction = 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom';
 export type DistributeAxis = 'horizontal' | 'vertical';
@@ -122,7 +127,7 @@ export const applyRectToConfig = (
   }
 
   if (block === 'badges') {
-    const languages = data.languages;
+    const languages = getVisibleBadgeLanguages(config, data);
     const itemCount = languages.length;
     const height = clamp(Math.round(rect.h), 24, 100);
     const fontSize = clamp(Math.round(height * 0.42), 10, 48);

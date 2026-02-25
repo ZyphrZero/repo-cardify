@@ -40,7 +40,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [repoData, setRepoData] = useState<RepoData | null>(null);
   const [config, setConfig] = useState<CardConfig>(() => createDefaultCardConfig());
-  const [selectedBlocks, setSelectedBlocks] = useState<LayoutBlockId[]>(['title']);
+  const [selectedBlocks, setSelectedBlocks] = useState<LayoutBlockId[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [locale, setLocale] = useState<Locale>('en');
   const [uiThemeMode, setUiThemeMode] = useState<UiThemeMode>('system');
@@ -105,6 +105,7 @@ export default function App() {
     try {
       const data = await fetchRepoDetails(repoUrl);
       setRepoData(data);
+      setSelection([]);
       setConfig((prev) => ({
         ...prev,
         text: {

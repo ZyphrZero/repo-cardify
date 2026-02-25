@@ -20,7 +20,13 @@ import {
 } from '../types';
 import { getPreviewFontFamily } from '../services/exportFontService';
 import { useI18n } from './I18nContext';
-import { estimateTextWidth, getBadgeOffsets, getBadgeWidth, getVisibleStats } from './cardMetrics';
+import {
+  estimateTextWidth,
+  getBadgeOffsets,
+  getBadgeWidth,
+  getVisibleBadgeLanguages,
+  getVisibleStats,
+} from './cardMetrics';
 
 interface CardPreviewProps {
   data: RepoData;
@@ -385,7 +391,8 @@ export const CardPreview = forwardRef<SVGSVGElement, CardPreviewProps>(({ data, 
   );
   const descriptionLineHeight = config.text.descriptionSize * 1.35;
 
-  const badgeOffsets = getBadgeOffsets(data.languages, config.badge);
+  const visibleLanguages = getVisibleBadgeLanguages(config, data);
+  const badgeOffsets = getBadgeOffsets(visibleLanguages, config.badge);
 
   const shouldRenderOwner = config.text.showOwner;
   const useInlineTitle = shouldRenderOwner && config.text.titleDisplay === 'inline';
@@ -759,9 +766,9 @@ export const CardPreview = forwardRef<SVGSVGElement, CardPreviewProps>(({ data, 
         </g>
       )}
 
-      {config.badge.visible && data.languages.length > 0 && (
+      {config.badge.visible && visibleLanguages.length > 0 && (
         <g transform={`translate(${config.layout.badges.x}, ${config.layout.badges.y})`}>
-          {data.languages.map((language, index) => {
+          {visibleLanguages.map((language, index) => {
             const x = badgeOffsets[index] ?? 0;
             const badgeWidth = getBadgeWidth(language, config.badge);
             const badgeHeight = config.badge.height;

@@ -176,6 +176,7 @@ export interface BadgeConfig {
   height: number;
   paddingX: number;
   gap: number;
+  hiddenLanguages: string[];
 }
 
 export interface AvatarConfig {
@@ -247,7 +248,7 @@ export const createDefaultCardConfig = (): CardConfig => ({
   theme: "gradient",
   font: "inter",
   colors: {
-    background: "#4f46e5",
+    background: "#a3a3a3",
     accent: "#09090b",
   },
   pattern: {
@@ -264,6 +265,7 @@ export const createDefaultCardConfig = (): CardConfig => ({
     height: 72,
     paddingX: 20,
     gap: 20,
+    hiddenLanguages: [],
   },
   avatar: {
     visible: true,

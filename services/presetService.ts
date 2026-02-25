@@ -17,6 +17,8 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
 const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean';
 const isString = (value: unknown): value is string => typeof value === 'string';
+const isStringArray = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((item) => isString(item));
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const toNumber = (value: unknown, min: number, max: number, fallback: number) =>
@@ -83,6 +85,9 @@ export const sanitizeCardConfig = (input: unknown): CardConfig | null => {
       height: isNumber(badge.height) ? clamp(badge.height, 24, 100) : defaults.badge.height,
       paddingX: isNumber(badge.paddingX) ? clamp(badge.paddingX, 4, 48) : defaults.badge.paddingX,
       gap: isNumber(badge.gap) ? clamp(badge.gap, 0, 120) : defaults.badge.gap,
+      hiddenLanguages: isStringArray(badge.hiddenLanguages)
+        ? Array.from(new Set(badge.hiddenLanguages.slice(0, 20)))
+        : defaults.badge.hiddenLanguages,
     },
     avatar: {
       visible: isBoolean(avatar.visible) ? avatar.visible : defaults.avatar.visible,

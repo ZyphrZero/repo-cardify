@@ -472,6 +472,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         <BlockPopover
           block={popoverBlock}
           anchor={popoverAnchor}
+          data={data}
           config={config}
           setConfig={setConfig}
           onClose={closePopover}

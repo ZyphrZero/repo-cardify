@@ -4,6 +4,7 @@ import {
   BADGE_STYLE_OPTIONS,
   CardConfig,
   LayoutBlockId,
+  RepoData,
   STATS_STYLE_DEFAULTS,
   STATS_STYLE_OPTIONS,
   STATS_VALUE_FORMAT_OPTIONS,
@@ -16,6 +17,7 @@ import { NumberInput, SectionHeader, SelectInput, SliderInput } from './SharedIn
 interface BlockPopoverProps {
   block: LayoutBlockId;
   anchor: DOMRect;
+  data: RepoData;
   config: CardConfig;
   setConfig: React.Dispatch<React.SetStateAction<CardConfig>>;
   onClose: () => void;
@@ -56,7 +58,7 @@ const computePosition = (anchor: DOMRect, popoverHeight: number) => {
 
 const DEFAULTS = createDefaultCardConfig();
 
-const AvatarContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<React.SetStateAction<CardConfig>>; messages: ReturnType<typeof useI18n>['messages']; onLogoUpload: (file: File) => void }> = ({ config, setConfig, messages, onLogoUpload }) => (
+const AvatarContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<React.SetStateAction<CardConfig>>; data: RepoData; messages: ReturnType<typeof useI18n>['messages']; onLogoUpload: (file: File) => void }> = ({ config, setConfig, messages, onLogoUpload }) => (
   <div className="space-y-3">
     <label className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2">
       <span className="text-xs text-zinc-600">{messages.controlPanel.labels.showAvatar}</span>
@@ -114,7 +116,7 @@ const AvatarContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<Re
   </div>
 );
 
-const TitleContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<React.SetStateAction<CardConfig>>; messages: ReturnType<typeof useI18n>['messages']; onLogoUpload: (file: File) => void }> = ({ config, setConfig, messages }) => (
+const TitleContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<React.SetStateAction<CardConfig>>; data: RepoData; messages: ReturnType<typeof useI18n>['messages']; onLogoUpload: (file: File) => void }> = ({ config, setConfig, messages }) => (
   <div className="space-y-3">
     <label className="space-y-1 block">
       <span className="text-xs text-zinc-500">{messages.controlPanel.labels.title}</span>
@@ -167,15 +169,15 @@ const TitleContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<Rea
   </div>
 );
 
-const DescriptionContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<React.SetStateAction<CardConfig>>; messages: ReturnType<typeof useI18n>['messages']; onLogoUpload: (file: File) => void }> = ({ config, setConfig, messages }) => (
+const DescriptionContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<React.SetStateAction<CardConfig>>; data: RepoData; messages: ReturnType<typeof useI18n>['messages']; onLogoUpload: (file: File) => void }> = ({ config, setConfig, messages }) => (
   <div className="space-y-3">
     <label className="space-y-1 block">
       <span className="text-xs text-zinc-500">{messages.controlPanel.labels.description}</span>
       <textarea
         value={config.text.customDescription}
         onChange={(e) => setConfig((prev) => ({ ...prev, text: { ...prev.text, customDescription: e.target.value } }))}
-        rows={2}
-        className="w-full resize-none rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm text-zinc-800 outline-none transition-colors focus:border-indigo-500 focus:ring-0"
+        rows={3}
+        className="w-full resize-y rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm text-zinc-800 outline-none transition-colors focus:border-indigo-500 focus:ring-0"
       />
     </label>
     <NumberInput
@@ -188,7 +190,7 @@ const DescriptionContent: React.FC<{ config: CardConfig; setConfig: React.Dispat
   </div>
 );
 
-const StatsContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<React.SetStateAction<CardConfig>>; messages: ReturnType<typeof useI18n>['messages']; onLogoUpload: (file: File) => void }> = ({ config, setConfig, messages }) => (
+const StatsContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<React.SetStateAction<CardConfig>>; data: RepoData; messages: ReturnType<typeof useI18n>['messages']; onLogoUpload: (file: File) => void }> = ({ config, setConfig, messages }) => (
   <div className="space-y-3">
     <div className="grid grid-cols-3 gap-2">
       {([
@@ -286,7 +288,7 @@ const StatsContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<Rea
   </div>
 );
 
-const BadgesContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<React.SetStateAction<CardConfig>>; messages: ReturnType<typeof useI18n>['messages']; onLogoUpload: (file: File) => void }> = ({ config, setConfig, messages }) => (
+const BadgesContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<React.SetStateAction<CardConfig>>; data: RepoData; messages: ReturnType<typeof useI18n>['messages']; onLogoUpload: (file: File) => void }> = ({ config, setConfig, data, messages }) => (
   <div className="space-y-3">
     <label className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2">
       <span className="text-xs text-zinc-600">{messages.controlPanel.labels.showBadges}</span>
@@ -331,10 +333,50 @@ const BadgesContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<Re
       max={60}
       onChange={(v) => setConfig((prev) => ({ ...prev, badge: { ...prev.badge, gap: v } }))}
     />
+    {data.languages.length > 0 && (
+      <div className="space-y-1">
+        <span className="text-xs text-zinc-500">{messages.controlPanel.labels.badgeLanguages}</span>
+        <div className="max-h-36 space-y-1 overflow-y-auto rounded-lg border border-zinc-200 bg-white p-2">
+          {data.languages.map((language) => {
+            const checked = !config.badge.hiddenLanguages.includes(language);
+            return (
+              <label
+                key={language}
+                className="flex items-center justify-between gap-2 rounded-md px-2 py-1 hover:bg-zinc-50"
+              >
+                <span className="min-w-0 flex-1 truncate text-xs text-zinc-600">{language}</span>
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={(event) =>
+                    setConfig((prev) => {
+                      const nextHidden = new Set(prev.badge.hiddenLanguages);
+                      if (event.target.checked) {
+                        nextHidden.delete(language);
+                      } else {
+                        nextHidden.add(language);
+                      }
+                      return {
+                        ...prev,
+                        badge: {
+                          ...prev.badge,
+                          hiddenLanguages: Array.from(nextHidden),
+                        },
+                      };
+                    })
+                  }
+                  className="h-4 w-4 rounded border-zinc-300 bg-white"
+                />
+              </label>
+            );
+          })}
+        </div>
+      </div>
+    )}
   </div>
 );
 
-const BLOCK_CONTENT: Record<LayoutBlockId, React.FC<{ config: CardConfig; setConfig: React.Dispatch<React.SetStateAction<CardConfig>>; messages: ReturnType<typeof useI18n>['messages']; onLogoUpload: (file: File) => void }>> = {
+const BLOCK_CONTENT: Record<LayoutBlockId, React.FC<{ config: CardConfig; setConfig: React.Dispatch<React.SetStateAction<CardConfig>>; data: RepoData; messages: ReturnType<typeof useI18n>['messages']; onLogoUpload: (file: File) => void }>> = {
   avatar: AvatarContent,
   title: TitleContent,
   description: DescriptionContent,
@@ -345,6 +387,7 @@ const BLOCK_CONTENT: Record<LayoutBlockId, React.FC<{ config: CardConfig; setCon
 export const BlockPopover: React.FC<BlockPopoverProps> = ({
   block,
   anchor,
+  data,
   config,
   setConfig,
   onClose,
@@ -453,7 +496,13 @@ export const BlockPopover: React.FC<BlockPopoverProps> = ({
         <SectionHeader title={messages.popover[block]} onReset={resetHandlers[block]} />
       </div>
       <div className="p-3">
-        <Content config={config} setConfig={setConfig} messages={messages} onLogoUpload={onLogoUpload} />
+        <Content
+          config={config}
+          setConfig={setConfig}
+          data={data}
+          messages={messages}
+          onLogoUpload={onLogoUpload}
+        />
       </div>
     </div>
   );

@@ -81,6 +81,7 @@ interface LocaleMessages {
       customLogo: string;
       removeCustomLogo: string;
       showBadges: string;
+      badgeLanguages: string;
       badgeStyle: string;
       fontSize: string;
       height: string;
@@ -214,6 +215,7 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
         customLogo: 'Custom Logo',
         removeCustomLogo: 'Remove Custom Logo',
         showBadges: 'Show Badges',
+        badgeLanguages: 'Visible Languages',
         badgeStyle: 'Badge Style',
         fontSize: 'Font Size',
         height: 'Height',
@@ -402,12 +404,13 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
         offsetX: 'X 偏移',
         offsetY: 'Y 偏移',
         showAvatar: '显示头像',
-        avatarShape: '头像形状',
+        avatarShape: '遮罩形状',
         avatarSize: '头像尺寸',
         cornerRadius: '圆角半径',
         customLogo: '自定义 Logo',
         removeCustomLogo: '移除自定义 Logo',
         showBadges: '显示徽章',
+        badgeLanguages: '显示语言',
         badgeStyle: '徽章样式',
         fontSize: '字体大小',
         height: '高度',

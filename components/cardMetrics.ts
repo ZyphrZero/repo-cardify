@@ -29,6 +29,11 @@ export const getBadgeRowWidth = (languages: string[], badge: BadgeConfig) => {
   return offsets[lastIndex] + getBadgeWidth(languages[lastIndex], badge);
 };
 
+export const getVisibleBadgeLanguages = (config: CardConfig, data: RepoData) => {
+  const hidden = new Set(config.badge.hiddenLanguages);
+  return data.languages.filter((language) => !hidden.has(language));
+};
+
 export const getVisibleStats = (config: CardConfig, data: RepoData) =>
   [
     { enabled: config.stats.showStars, value: data.stars, key: 'stars' as const },
@@ -38,12 +43,15 @@ export const getVisibleStats = (config: CardConfig, data: RepoData) =>
 
 export const getInteractiveLayoutRects = (config: CardConfig, data: RepoData): Record<LayoutBlockId, LayoutRect> => {
   const visibleStats = getVisibleStats(config, data);
+  const visibleLanguages = getVisibleBadgeLanguages(config, data);
   const statsWidth =
     visibleStats.length > 0
       ? visibleStats.length * config.stats.itemWidth + (visibleStats.length - 1) * config.stats.gap
       : config.layout.stats.w;
 
-  const badgesWidth = config.badge.visible ? getBadgeRowWidth(data.languages, config.badge) : config.layout.badges.w;
+  const badgesWidth = config.badge.visible
+    ? getBadgeRowWidth(visibleLanguages, config.badge)
+    : config.layout.badges.w;
 
   return {
     avatar: {
