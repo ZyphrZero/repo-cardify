@@ -1,21 +1,37 @@
 import { RepoData } from '../types';
 
-// Helper to convert image URL to Base64
-// We do NOT send auth headers here to avoid CORS issues with avatar domains
-async function urlToBase64(url: string): Promise<string> {
+const AVATAR_PROXY_PATH = '/api/avatar';
+
+const toAvatarProxyUrl = (avatarUrl: string, owner: string) =>
+  `${AVATAR_PROXY_PATH}?url=${encodeURIComponent(avatarUrl)}&owner=${encodeURIComponent(owner)}`;
+
+interface AvatarProxyResponse {
+  dataUrl?: string;
+}
+
+const isDataImageUrl = (value: string) => value.startsWith('data:image/');
+
+// Read data URL from same-origin avatar proxy to avoid direct dependency
+// on blocked external avatar domains.
+async function fetchAvatarDataUrl(avatarUrl: string, owner: string): Promise<string> {
+  const proxyUrl = toAvatarProxyUrl(avatarUrl, owner);
+
   try {
-    const response = await fetch(url);
-    const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
+    const response = await fetch(proxyUrl);
+    if (!response.ok) {
+      console.error('Failed to fetch avatar:', response.status);
+      return '';
+    }
+
+    const payload = (await response.json()) as AvatarProxyResponse;
+    if (typeof payload.dataUrl === 'string' && isDataImageUrl(payload.dataUrl)) {
+      return payload.dataUrl;
+    }
+
+    return '';
   } catch (error) {
-    console.error("Error converting image to base64", error);
-    // Return a fallback placeholder if fetch fails
-    return ''; 
+    console.error('Error fetching avatar data URL', error);
+    return '';
   }
 }
 
@@ -34,9 +50,7 @@ export async function fetchRepoDetails(repoUrlStr: string): Promise<RepoData> {
   }
 
   const data = await response.json();
-
-  // Convert avatar to base64 for SVG foreignObject CORS safety
-  const avatarBase64 = await urlToBase64(data.avatarUrl);
+  const avatarDataUrl = await fetchAvatarDataUrl(data.avatarUrl, data.owner);
 
   return {
     owner: data.owner,
@@ -47,6 +61,6 @@ export async function fetchRepoDetails(repoUrlStr: string): Promise<RepoData> {
     issues: data.issues,
     language: data.language,
     languages: data.languages,
-    avatarUrl: avatarBase64 || data.avatarUrl,
+    avatarUrl: avatarDataUrl || data.avatarUrl,
   };
 }
