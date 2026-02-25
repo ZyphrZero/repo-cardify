@@ -21,7 +21,9 @@ export async function GET(_req: Request, context: RouteContext) {
     return NextResponse.json({ message: 'Logo not found.' }, { status: 404 });
   }
 
-  return new NextResponse(logo.buffer, {
+  const responseBody = new Uint8Array(logo.buffer);
+
+  return new NextResponse(responseBody, {
     status: 200,
     headers: {
       'content-type': logo.mimeType,
@@ -31,4 +33,3 @@ export async function GET(_req: Request, context: RouteContext) {
     },
   });
 }
-
