@@ -4,6 +4,8 @@ const FALLBACK_SIZE = 256;
 const FALLBACK_BG = '#1f2937';
 const FALLBACK_TEXT = '#f9fafb';
 const MAX_OWNER_LENGTH = 64;
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+const AVATAR_FETCH_TIMEOUT_MS = 7000;
 
 const trimOwner = (owner: string) => owner.trim().slice(0, MAX_OWNER_LENGTH);
 
@@ -67,6 +69,7 @@ export async function GET(req: Request) {
       headers: {
         Accept: 'image/*',
       },
+      signal: AbortSignal.timeout(AVATAR_FETCH_TIMEOUT_MS),
     });
 
     if (!response.ok) {
@@ -78,7 +81,15 @@ export async function GET(req: Request) {
       return fallbackResponse(owner);
     }
 
+    const contentLength = Number(response.headers.get('content-length') ?? NaN);
+    if (Number.isFinite(contentLength) && contentLength > MAX_AVATAR_BYTES) {
+      return fallbackResponse(owner);
+    }
+
     const buffer = await response.arrayBuffer();
+    if (buffer.byteLength > MAX_AVATAR_BYTES) {
+      return fallbackResponse(owner);
+    }
     const dataUrl = `data:${contentType};base64,${Buffer.from(buffer).toString('base64')}`;
 
     return NextResponse.json(
