@@ -31,7 +31,6 @@ interface LocaleMessages {
     fetch: string;
     waitingCanvasHint: string;
     emptyCanvasHint: string;
-    readyToExportHint: string;
     download: string;
     downloadPng: string;
     downloadJpg: string;
@@ -49,8 +48,6 @@ interface LocaleMessages {
     failedImportPreset: string;
     failedDownload: string;
     failedCopy: string;
-    failedUploadLogo: string;
-    uploadedLogo: string;
     noDescription: string;
     styleLayoutTitle: string;
     editorPanelBadge: string;
@@ -92,6 +89,7 @@ interface LocaleMessages {
       avatarSize: string;
       cornerRadius: string;
       customLogo: string;
+      customLogoPlaceholder: string;
       removeCustomLogo: string;
       showBadges: string;
       badgeLanguages: string;
@@ -177,26 +175,23 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
       fetch: 'Fetch',
       waitingCanvasHint: 'Preview canvas will be generated here after loading a repository.',
       emptyCanvasHint: 'Enter a repository to generate and edit a card.',
-      readyToExportHint: 'Use drag and alignment tools, then export your final image.',
       download: 'Download',
       downloadPng: 'PNG',
       downloadJpg: 'JPG',
       downloadSvg: 'SVG',
-      downloadWebp: 'WEBP',
+      downloadWebp: 'WebP',
       copyUrl: 'Copy URL',
       copyMarkdown: 'Copy Markdown',
-      copyImgTag: 'Copy <img />',
-      copyOgTags: 'Copy OG Meta',
-      copiedUrl: 'Image URL copied.',
-      copiedMarkdown: 'Markdown snippet copied.',
-      copiedImgTag: '<img /> snippet copied.',
-      copiedOgTags: 'Open Graph tags copied.',
+      copyImgTag: 'Copy <img>',
+      copyOgTags: 'Copy OG Tags',
+      copiedUrl: 'URL copied!',
+      copiedMarkdown: 'Markdown copied!',
+      copiedImgTag: 'Image tag copied!',
+      copiedOgTags: 'OG tags copied!',
       failedFetchRepo: 'Failed to fetch repository.',
       failedImportPreset: 'Failed to import preset.',
       failedDownload: 'Failed to download image.',
-      failedCopy: 'Failed to copy content.',
-      failedUploadLogo: 'Failed to upload custom logo.',
-      uploadedLogo: 'Custom logo uploaded.',
+      failedCopy: 'Failed to copy.',
       noDescription: 'No description provided.',
       styleLayoutTitle: 'Style & Layout',
       editorPanelBadge: 'Editor Panel',
@@ -238,7 +233,8 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
         avatarShape: 'Avatar Shape',
         avatarSize: 'Avatar Size',
         cornerRadius: 'Corner Radius',
-        customLogo: 'Custom Logo',
+        customLogo: 'Image URL / Data URI',
+        customLogoPlaceholder: 'https://example.com/logo.png or data:image/png;base64,...',
         removeCustomLogo: 'Remove Custom Logo',
         showBadges: 'Show Badges',
         badgeLanguages: 'Visible Languages',
@@ -385,26 +381,23 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
       fetch: '获取',
       waitingCanvasHint: '加载仓库后，这里会生成可编辑的预览画布。',
       emptyCanvasHint: '输入仓库后可生成并编辑卡片。',
-      readyToExportHint: '可先用拖拽和对齐工具调整布局，再导出图片。',
       download: '下载',
       downloadPng: 'PNG',
       downloadJpg: 'JPG',
       downloadSvg: 'SVG',
-      downloadWebp: 'WEBP',
-      copyUrl: '复制 URL',
+      downloadWebp: 'WebP',
+      copyUrl: '复制链接',
       copyMarkdown: '复制 Markdown',
-      copyImgTag: '复制 <img />',
+      copyImgTag: '复制 <img>',
       copyOgTags: '复制 OG 标签',
-      copiedUrl: '图片链接已复制。',
-      copiedMarkdown: 'Markdown 片段已复制。',
-      copiedImgTag: '<img /> 片段已复制。',
-      copiedOgTags: 'Open Graph 标签已复制。',
+      copiedUrl: '链接已复制！',
+      copiedMarkdown: 'Markdown 已复制！',
+      copiedImgTag: '图片标签已复制！',
+      copiedOgTags: 'OG 标签已复制！',
       failedFetchRepo: '获取仓库失败。',
       failedImportPreset: '导入预设失败。',
       failedDownload: '下载图片失败。',
       failedCopy: '复制失败。',
-      failedUploadLogo: '上传自定义 Logo 失败。',
-      uploadedLogo: '自定义 Logo 上传成功。',
       noDescription: '暂无描述。',
       styleLayoutTitle: '样式与布局',
       editorPanelBadge: '编辑面板',
@@ -446,7 +439,8 @@ const MESSAGES: Record<Locale, LocaleMessages> = {
         avatarShape: '遮罩形状',
         avatarSize: '头像尺寸',
         cornerRadius: '圆角半径',
-        customLogo: '自定义 Logo',
+        customLogo: '图片 URL / Data URI',
+        customLogoPlaceholder: 'https://example.com/logo.png 或 data:image/png;base64,...',
         removeCustomLogo: '移除自定义 Logo',
         showBadges: '显示徽章',
         badgeLanguages: '显示语言',

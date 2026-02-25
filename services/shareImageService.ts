@@ -4,10 +4,8 @@ import { sanitizeCardConfig } from './presetService';
 
 const SHARE_CONFIG_PARAM = 'c';
 const SHARE_LOCALE_PARAM = 'l';
-const SHARE_CONFIG_MAX_QUERY_LENGTH = 12000;
 const SHARE_CONFIG_MAX_JSON_LENGTH = 12000;
-const MAX_CUSTOM_LOGO_LENGTH = 2048;
-const SHARE_CONFIG_PAYLOAD_VERSION = 3;
+const SHARE_CONFIG_PAYLOAD_VERSION = 1;
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
@@ -15,57 +13,25 @@ const textDecoder = new TextDecoder();
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 
-interface ShareConfigPayloadV3 {
-  v: typeof SHARE_CONFIG_PAYLOAD_VERSION;
-  p: JsonValue | null;
-}
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
-const toBase64 = (bytes: Uint8Array): string => {
-  if (typeof Buffer !== 'undefined') {
-    return Buffer.from(bytes).toString('base64');
-  }
-
+const toBase64 = (value: string): string => {
+  const bytes = textEncoder.encode(value);
   let binary = '';
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
   }
-  return btoa(binary);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 };
-
-const fromBase64 = (value: string): Uint8Array => {
-  if (typeof Buffer !== 'undefined') {
-    return new Uint8Array(Buffer.from(value, 'base64'));
-  }
-
-  const binary = atob(value);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return bytes;
-};
-
-const toBase64Url = (value: string) =>
-  toBase64(textEncoder.encode(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 
 const fromBase64Url = (value: string) => {
   const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
   const paddingLength = normalized.length % 4;
   const padded = paddingLength === 0 ? normalized : `${normalized}${'='.repeat(4 - paddingLength)}`;
-  return textDecoder.decode(fromBase64(padded));
-};
-
-const sanitizeShareConfig = (config: CardConfig): CardConfig => {
-  if (config.customLogo && config.customLogo.length > MAX_CUSTOM_LOGO_LENGTH) {
-    return {
-      ...config,
-      customLogo: null,
-    };
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
   }
-  return config;
+  return textDecoder.decode(bytes);
 };
 
 const deepEqual = (left: unknown, right: unknown): boolean => {
@@ -73,116 +39,37 @@ const deepEqual = (left: unknown, right: unknown): boolean => {
 
   if (Array.isArray(left) && Array.isArray(right)) {
     if (left.length !== right.length) return false;
-    for (let index = 0; index < left.length; index += 1) {
-      if (!deepEqual(left[index], right[index])) return false;
-    }
-    return true;
+    return left.every((item, index) => deepEqual(item, right[index]));
   }
 
-  if (isRecord(left) && isRecord(right)) {
-    const leftKeys = Object.keys(left);
-    const rightKeys = Object.keys(right);
+  if (left !== null && right !== null && typeof left === 'object' && typeof right === 'object') {
+    const leftKeys = Object.keys(left as Record<string, unknown>);
+    const rightKeys = Object.keys(right as Record<string, unknown>);
     if (leftKeys.length !== rightKeys.length) return false;
-    for (const key of leftKeys) {
-      if (!(key in right)) return false;
-      if (!deepEqual(left[key], right[key])) return false;
-    }
-    return true;
+    return leftKeys.every((key) => deepEqual((left as Record<string, unknown>)[key], (right as Record<string, unknown>)[key]));
   }
 
   return false;
 };
 
-const buildConfigPatch = (current: unknown, baseline: unknown): JsonValue | undefined => {
-  if (deepEqual(current, baseline)) {
-    return undefined;
-  }
-
-  if (Array.isArray(current)) {
-    return current as JsonValue;
-  }
-
-  if (isRecord(current) && isRecord(baseline)) {
-    const patch: Record<string, JsonValue> = {};
-    for (const key of Object.keys(current)) {
-      const childPatch = buildConfigPatch(current[key], baseline[key]);
-      if (childPatch !== undefined) {
-        patch[key] = childPatch;
-      }
-    }
-    return Object.keys(patch).length > 0 ? patch : undefined;
-  }
-
-  return current as JsonValue;
-};
-
-const applyConfigPatch = (baseline: unknown, patch: unknown): unknown => {
-  if (patch === undefined || patch === null) {
-    return baseline;
-  }
-
-  if (Array.isArray(patch)) {
-    return patch;
-  }
-
-  if (isRecord(patch) && isRecord(baseline)) {
-    const merged: Record<string, unknown> = { ...baseline };
-    for (const [key, value] of Object.entries(patch)) {
-      merged[key] = applyConfigPatch(baseline[key], value);
-    }
-    return merged;
-  }
-
-  return patch;
-};
-
-const isShareConfigPayloadV3 = (value: unknown): value is ShareConfigPayloadV3 =>
-  isRecord(value) &&
-  value.v === SHARE_CONFIG_PAYLOAD_VERSION &&
-  Object.prototype.hasOwnProperty.call(value, 'p');
-
-export const encodeShareConfig = (config: CardConfig): string | null => {
-  const safeConfig = sanitizeShareConfig(config);
+const removeDefaults = (config: CardConfig): CardConfig => {
   const defaults = createDefaultCardConfig();
-  const patch = buildConfigPatch(safeConfig, defaults) ?? null;
-  if (!patch) {
-    return null;
-  }
 
-  const payload: ShareConfigPayloadV3 = {
-    v: SHARE_CONFIG_PAYLOAD_VERSION,
-    p: patch,
-  };
-  return toBase64Url(JSON.stringify(payload));
+  const filtered: CardConfig = { ...config };
+
+  if (config.theme === defaults.theme) delete filtered.theme;
+  if (config.font === defaults.font) delete filtered.font;
+  if (deepEqual(config.colors, defaults.colors)) delete filtered.colors;
+  if (deepEqual(config.pattern, defaults.pattern)) delete filtered.pattern;
+  if (deepEqual(config.badge, defaults.badge)) delete filtered.badge;
+  if (deepEqual(config.avatar, defaults.avatar)) delete filtered.avatar;
+  if (deepEqual(config.stats, defaults.stats)) delete filtered.stats;
+  if (deepEqual(config.text, defaults.text)) delete filtered.text;
+  if (deepEqual(config.layout, defaults.layout)) delete filtered.layout;
+  if (config.customLogo === defaults.customLogo) delete filtered.customLogo;
+
+  return filtered;
 };
-
-export const decodeShareConfig = (encodedConfig: string | null): CardConfig | null => {
-  if (!encodedConfig || encodedConfig.length > SHARE_CONFIG_MAX_QUERY_LENGTH) {
-    return null;
-  }
-
-  try {
-    const decoded = fromBase64Url(encodedConfig);
-    if (decoded.length > SHARE_CONFIG_MAX_JSON_LENGTH) {
-      return null;
-    }
-
-    const raw = JSON.parse(decoded);
-    if (!isShareConfigPayloadV3(raw)) {
-      return null;
-    }
-
-    const defaults = createDefaultCardConfig();
-    const merged = applyConfigPatch(defaults, raw.p ?? null);
-    const config = sanitizeCardConfig(merged);
-    if (!config) return null;
-    return sanitizeShareConfig(config);
-  } catch {
-    return null;
-  }
-};
-
-const encodePathSegment = (value: string) => encodeURIComponent(value.trim());
 
 export const buildShareImagePath = (
   owner: string,
@@ -190,16 +77,43 @@ export const buildShareImagePath = (
   config: CardConfig,
   locale: Locale
 ): string => {
-  const params = new URLSearchParams();
-  const encodedConfig = encodeShareConfig(config);
-  if (encodedConfig) {
-    params.set(SHARE_CONFIG_PARAM, encodedConfig);
-  }
-  if (locale !== 'en') {
-    params.set(SHARE_LOCALE_PARAM, locale);
+  const minimized = removeDefaults(config);
+  const json = JSON.stringify({ v: SHARE_CONFIG_PAYLOAD_VERSION, c: minimized });
+  let configParam: string;
+  if (json.length > SHARE_CONFIG_MAX_JSON_LENGTH) {
+    console.warn('Share config exceeds recommended size, truncating customLogo');
+    const truncated = { ...minimized, customLogo: null };
+    const truncatedJson = JSON.stringify({ v: SHARE_CONFIG_PAYLOAD_VERSION, c: truncated });
+    configParam = toBase64(truncatedJson);
+  } else {
+    configParam = toBase64(json);
   }
 
-  const query = params.toString();
-  const path = `/${encodePathSegment(owner)}/${encodePathSegment(name)}/image`;
-  return query ? `${path}?${query}` : path;
+  const localeParam = locale === 'en' ? '' : `&${SHARE_LOCALE_PARAM}=${locale}`;
+
+  return `/${owner}/${name}/image?${SHARE_CONFIG_PARAM}=${configParam}${localeParam}`;
+};
+
+export const decodeShareConfig = (param: string | null): CardConfig | null => {
+  if (!param) return null;
+
+  try {
+    const json = fromBase64Url(param);
+    const parsed: JsonValue = JSON.parse(json);
+
+    if (!parsed || typeof parsed !== 'object') return null;
+    const payload = parsed as { v?: JsonValue; c?: JsonValue };
+    const version = payload.v;
+    const configJson = payload.c;
+
+    if (typeof version !== 'number' || typeof configJson !== 'object' || configJson === null) {
+      return null;
+    }
+
+    const rawConfig = configJson as JsonValue;
+    const sanitized = sanitizeCardConfig(rawConfig as Record<string, JsonValue>);
+    return sanitized;
+  } catch {
+    return null;
+  }
 };

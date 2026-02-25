@@ -21,8 +21,14 @@ interface BlockPopoverProps {
   config: CardConfig;
   setConfig: React.Dispatch<React.SetStateAction<CardConfig>>;
   onClose: () => void;
-  onLogoUpload: (file: File) => void;
 }
+
+type BlockContentProps = {
+  config: CardConfig;
+  setConfig: React.Dispatch<React.SetStateAction<CardConfig>>;
+  data: RepoData;
+  messages: ReturnType<typeof useI18n>['messages'];
+};
 
 const POPOVER_WIDTH = 260;
 const POPOVER_GAP = 8;
@@ -58,7 +64,7 @@ const computePosition = (anchor: DOMRect, popoverHeight: number) => {
 
 const DEFAULTS = createDefaultCardConfig();
 
-const AvatarContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<React.SetStateAction<CardConfig>>; data: RepoData; messages: ReturnType<typeof useI18n>['messages']; onLogoUpload: (file: File) => void }> = ({ config, setConfig, messages, onLogoUpload }) => (
+const AvatarContent: React.FC<BlockContentProps> = ({ config, setConfig, messages }) => (
   <div className="space-y-3">
     <label className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2">
       <span className="text-xs text-zinc-600">{messages.controlPanel.labels.showAvatar}</span>
@@ -97,11 +103,15 @@ const AvatarContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<Re
     />
     <label className="space-y-1 block">
       <span className="text-xs text-zinc-500">{messages.controlPanel.labels.customLogo}</span>
-      <input
-        type="file"
-        accept="image/*"
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) { onLogoUpload(f); e.target.value = ''; } }}
-        className="w-full text-sm text-zinc-500 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-zinc-700 hover:file:bg-zinc-200"
+      <textarea
+        value={config.customLogo ?? ''}
+        placeholder={messages.controlPanel.labels.customLogoPlaceholder}
+        onChange={(event) => {
+          const normalized = event.target.value.trim();
+          setConfig((prev) => ({ ...prev, customLogo: normalized.length > 0 ? normalized : null }));
+        }}
+        rows={3}
+        className="w-full resize-y rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm text-zinc-800 outline-none transition-colors focus:border-indigo-500 focus:ring-0"
       />
     </label>
     {config.customLogo && (
@@ -116,7 +126,7 @@ const AvatarContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<Re
   </div>
 );
 
-const TitleContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<React.SetStateAction<CardConfig>>; data: RepoData; messages: ReturnType<typeof useI18n>['messages']; onLogoUpload: (file: File) => void }> = ({ config, setConfig, messages }) => (
+const TitleContent: React.FC<BlockContentProps> = ({ config, setConfig, messages }) => (
   <div className="space-y-3">
     <label className="space-y-1 block">
       <span className="text-xs text-zinc-500">{messages.controlPanel.labels.title}</span>
@@ -169,7 +179,7 @@ const TitleContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<Rea
   </div>
 );
 
-const DescriptionContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<React.SetStateAction<CardConfig>>; data: RepoData; messages: ReturnType<typeof useI18n>['messages']; onLogoUpload: (file: File) => void }> = ({ config, setConfig, messages }) => (
+const DescriptionContent: React.FC<BlockContentProps> = ({ config, setConfig, messages }) => (
   <div className="space-y-3">
     <label className="space-y-1 block">
       <span className="text-xs text-zinc-500">{messages.controlPanel.labels.description}</span>
@@ -190,7 +200,7 @@ const DescriptionContent: React.FC<{ config: CardConfig; setConfig: React.Dispat
   </div>
 );
 
-const StatsContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<React.SetStateAction<CardConfig>>; data: RepoData; messages: ReturnType<typeof useI18n>['messages']; onLogoUpload: (file: File) => void }> = ({ config, setConfig, messages }) => (
+const StatsContent: React.FC<BlockContentProps> = ({ config, setConfig, messages }) => (
   <div className="space-y-3">
     <div className="grid grid-cols-3 gap-2">
       {([
@@ -288,7 +298,7 @@ const StatsContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<Rea
   </div>
 );
 
-const BadgesContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<React.SetStateAction<CardConfig>>; data: RepoData; messages: ReturnType<typeof useI18n>['messages']; onLogoUpload: (file: File) => void }> = ({ config, setConfig, data, messages }) => (
+const BadgesContent: React.FC<BlockContentProps> = ({ config, setConfig, data, messages }) => (
   <div className="space-y-3">
     <label className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2">
       <span className="text-xs text-zinc-600">{messages.controlPanel.labels.showBadges}</span>
@@ -376,7 +386,7 @@ const BadgesContent: React.FC<{ config: CardConfig; setConfig: React.Dispatch<Re
   </div>
 );
 
-const BLOCK_CONTENT: Record<LayoutBlockId, React.FC<{ config: CardConfig; setConfig: React.Dispatch<React.SetStateAction<CardConfig>>; data: RepoData; messages: ReturnType<typeof useI18n>['messages']; onLogoUpload: (file: File) => void }>> = {
+const BLOCK_CONTENT: Record<LayoutBlockId, React.FC<BlockContentProps>> = {
   avatar: AvatarContent,
   title: TitleContent,
   description: DescriptionContent,
@@ -391,7 +401,6 @@ export const BlockPopover: React.FC<BlockPopoverProps> = ({
   config,
   setConfig,
   onClose,
-  onLogoUpload,
 }) => {
   const { messages } = useI18n();
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -501,7 +510,6 @@ export const BlockPopover: React.FC<BlockPopoverProps> = ({
           setConfig={setConfig}
           data={data}
           messages={messages}
-          onLogoUpload={onLogoUpload}
         />
       </div>
     </div>

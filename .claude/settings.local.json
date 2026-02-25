@@ -3,7 +3,8 @@
     "allow": [
       "Bash(cd /e/GitHub/repo-cardify && npx next build 2>&1)",
       "mcp__ide__getDiagnostics",
-      "Bash(head:*)"
+      "Bash(head:*)",
+      "Bash(cd:*)"
     ]
   }
 }

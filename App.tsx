@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronDown, Code2, Download, Github, Layers, Layout, Link2 } from 'lucide-react';
@@ -141,13 +141,11 @@ export default function App() {
 
     setLoading(true);
     setError(null);
-    setDownloadMenuOpen(false);
 
     try {
       const data = await fetchRepoDetails(repoUrl);
       setRepoData(data);
       setSelection([]);
-      setShareMessage(null);
       setConfig((prev) => ({
         ...prev,
         text: {
@@ -159,47 +157,6 @@ export default function App() {
       }));
     } catch (err: any) {
       setError(err.message || messages.app.failedFetchRepo);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLogoUpload = async (file: File) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const formData = new FormData();
-      formData.set('file', file);
-
-      const response = await fetch('/api/logo', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        let message = messages.app.failedUploadLogo;
-        try {
-          const payload = await response.json();
-          if (typeof payload?.message === 'string') {
-            message = payload.message;
-          }
-        } catch {
-          // Use fallback message.
-        }
-        throw new Error(message);
-      }
-
-      const payload = await response.json();
-      if (typeof payload?.url !== 'string' || !payload.url.startsWith('/api/logo/')) {
-        throw new Error(messages.app.failedUploadLogo);
-      }
-
-      setConfig((prev) => ({ ...prev, customLogo: payload.url }));
-      setShareMessage(messages.app.uploadedLogo);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : messages.app.failedUploadLogo;
-      setError(message);
     } finally {
       setLoading(false);
     }
@@ -586,7 +543,7 @@ export default function App() {
         </header>
 
         <main className="relative z-10 mx-auto flex w-full max-w-[1360px] flex-1 flex-col gap-5 px-4 py-5 lg:px-8 lg:py-6 xl:grid xl:grid-cols-[minmax(0,1fr)_390px] xl:items-start">
-          <section className="flex min-h-[calc(100vh-150px)] flex-col overflow-visible rounded-2xl app-card shadow-sm">
+          <section className="flex min-h-[calc(100vh-150px)] flex-col overflow-hidden rounded-2xl app-card shadow-sm">
             <div className="px-5 py-5 md:px-6">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -643,7 +600,6 @@ export default function App() {
                     primaryBlock={primaryBlock}
                     setSelection={setSelection}
                     svgRef={svgRef}
-                    onLogoUpload={handleLogoUpload}
                   />
                 ) : (
                   <div className="mt-8 flex min-h-[420px] w-full max-w-5xl flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-8 text-center">
@@ -655,10 +611,7 @@ export default function App() {
             </div>
 
             {repoData && (
-              <div className="relative z-20 flex flex-wrap items-center justify-between gap-3 rounded-b-2xl border-t app-border app-surface-muted px-5 py-4 md:px-6">
-                <div className="flex flex-col gap-1">
-                  <p className="text-xs text-zinc-500">{messages.app.readyToExportHint}</p>
-                </div>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t app-border app-surface-muted px-5 py-4 md:px-6">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="relative z-30" ref={downloadMenuRef}>
                     <button
@@ -671,7 +624,7 @@ export default function App() {
                       <ChevronDown className={`h-4 w-4 transition-transform ${isDownloadMenuOpen ? 'rotate-180' : ''}`} />
                     </button>
                     {isDownloadMenuOpen && (
-                      <div className="absolute bottom-full right-0 z-50 mb-2 w-36 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg">
+                      <div className="absolute bottom-full left-0 z-50 mb-2 w-36 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg">
                         <button
                           type="button"
                           onClick={() => downloadImage('svg')}

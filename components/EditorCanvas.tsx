@@ -22,7 +22,6 @@ interface EditorCanvasProps {
   primaryBlock: LayoutBlockId | null;
   setSelection: (blocks: LayoutBlockId[], primary?: LayoutBlockId) => void;
   svgRef: React.RefObject<SVGSVGElement | null>;
-  onLogoUpload: (file: File) => void;
 }
 
 type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se';
@@ -181,7 +180,6 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   primaryBlock,
   setSelection,
   svgRef,
-  onLogoUpload,
 }) => {
   const { messages } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -476,7 +474,6 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
           config={config}
           setConfig={setConfig}
           onClose={closePopover}
-          onLogoUpload={onLogoUpload}
         />
       )}
     </div>
