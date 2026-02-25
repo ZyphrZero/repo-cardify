@@ -1,7 +1,7 @@
-'use client';
+﻿'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Download, Github, Layers, Layout } from 'lucide-react';
+import { ChevronDown, Code2, Download, Github, Layers, Layout, Link2 } from 'lucide-react';
 import { I18nProvider } from './components/I18nContext';
 import { EditorCanvas } from './components/EditorCanvas';
 import { ControlPanel } from './components/ControlPanel';
@@ -13,16 +13,20 @@ import {
 } from './services/exportFontService';
 import { fetchRepoDetails } from './services/githubService';
 import { exportConfigPreset, importConfigPreset } from './services/presetService';
+import { buildShareImagePath } from './services/shareImageService';
 import { CardConfig, LayoutBlockId, RepoData, createDefaultCardConfig } from './types';
 
 type ResolvedUiTheme = 'light' | 'dark';
-type RasterImageFormat = 'png' | 'jpg';
+type RasterImageFormat = 'png' | 'jpg' | 'webp';
+type DownloadImageFormat = RasterImageFormat | 'svg';
 
 const UI_THEME_STORAGE_KEY = 'repo-cardify-ui-theme-mode';
 const LOCALE_STORAGE_KEY = 'repo-cardify-locale';
 const EXPORT_WIDTH = 1200;
 const EXPORT_HEIGHT = 630;
 const JPG_EXPORT_QUALITY = 0.82;
+const WEBP_EXPORT_QUALITY = 0.9;
+const SHARE_MESSAGE_TIMEOUT_MS = 2400;
 const REPO_SOURCE_URL = 'https://github.com/ZyphrZero/repo-cardify';
 
 const normalizeSelection = (blocks: LayoutBlockId[], primary?: LayoutBlockId): LayoutBlockId[] => {
@@ -45,7 +49,10 @@ export default function App() {
   const [locale, setLocale] = useState<Locale>('en');
   const [uiThemeMode, setUiThemeMode] = useState<UiThemeMode>('system');
   const [systemPrefersDark, setSystemPrefersDark] = useState(false);
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
+  const [isDownloadMenuOpen, setDownloadMenuOpen] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
+  const downloadMenuRef = useRef<HTMLDivElement>(null);
 
   const primaryBlock: LayoutBlockId | null = selectedBlocks[0] ?? null;
   const resolvedUiTheme: ResolvedUiTheme = uiThemeMode === 'system' ? (systemPrefersDark ? 'dark' : 'light') : uiThemeMode;
@@ -95,17 +102,52 @@ export default function App() {
     document.documentElement.lang = locale;
   }, [locale]);
 
+  useEffect(() => {
+    if (!shareMessage || typeof window === 'undefined') return;
+    const timeoutId = window.setTimeout(() => {
+      setShareMessage(null);
+    }, SHARE_MESSAGE_TIMEOUT_MS);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [shareMessage]);
+
+  useEffect(() => {
+    if (!isDownloadMenuOpen) return;
+
+    const handleMouseDown = (event: MouseEvent) => {
+      if (downloadMenuRef.current?.contains(event.target as Node)) return;
+      setDownloadMenuOpen(false);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setDownloadMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isDownloadMenuOpen]);
+
   const handleFetchRepo = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!repoUrl.trim()) return;
 
     setLoading(true);
     setError(null);
+    setDownloadMenuOpen(false);
 
     try {
       const data = await fetchRepoDetails(repoUrl);
       setRepoData(data);
       setSelection([]);
+      setShareMessage(null);
       setConfig((prev) => ({
         ...prev,
         text: {
@@ -122,12 +164,45 @@ export default function App() {
     }
   };
 
-  const handleLogoUpload = (file: File) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setConfig((prev) => ({ ...prev, customLogo: reader.result as string }));
-    };
-    reader.readAsDataURL(file);
+  const handleLogoUpload = async (file: File) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.set('file', file);
+
+      const response = await fetch('/api/logo', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        let message = messages.app.failedUploadLogo;
+        try {
+          const payload = await response.json();
+          if (typeof payload?.message === 'string') {
+            message = payload.message;
+          }
+        } catch {
+          // Use fallback message.
+        }
+        throw new Error(message);
+      }
+
+      const payload = await response.json();
+      if (typeof payload?.url !== 'string' || !payload.url.startsWith('/api/logo/')) {
+        throw new Error(messages.app.failedUploadLogo);
+      }
+
+      setConfig((prev) => ({ ...prev, customLogo: payload.url }));
+      setShareMessage(messages.app.uploadedLogo);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : messages.app.failedUploadLogo;
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleExportPreset = () => {
@@ -248,13 +323,24 @@ export default function App() {
   const downloadRasterImage = useCallback(
     async (format: RasterImageFormat) => {
       setLoading(true);
+      setDownloadMenuOpen(false);
       try {
         const canvas = await renderSvgToCanvas();
         if (!canvas) return;
 
-        const isJpeg = format === 'jpg';
-        const mimeType = isJpeg ? 'image/jpeg' : 'image/png';
-        const blob = await canvasToBlob(canvas, mimeType, isJpeg ? JPG_EXPORT_QUALITY : undefined);
+        const mimeType =
+          format === 'jpg'
+            ? 'image/jpeg'
+            : format === 'webp'
+              ? 'image/webp'
+              : 'image/png';
+        const quality =
+          format === 'jpg'
+            ? JPG_EXPORT_QUALITY
+            : format === 'webp'
+              ? WEBP_EXPORT_QUALITY
+              : undefined;
+        const blob = await canvasToBlob(canvas, mimeType, quality);
 
         const url = URL.createObjectURL(blob);
         const downloadLink = document.createElement('a');
@@ -274,16 +360,9 @@ export default function App() {
     [canvasToBlob, messages.app.failedDownload, renderSvgToCanvas, repoData]
   );
 
-  const downloadPng = useCallback(() => {
-    void downloadRasterImage('png');
-  }, [downloadRasterImage]);
-
-  const downloadJpg = useCallback(() => {
-    void downloadRasterImage('jpg');
-  }, [downloadRasterImage]);
-
   const downloadSvg = useCallback(async () => {
     setLoading(true);
+    setDownloadMenuOpen(false);
     try {
       const source = await serializeSvg();
       if (!source) return;
@@ -304,6 +383,135 @@ export default function App() {
     }
   }, [serializeSvg, messages.app.failedDownload, repoData]);
 
+  const downloadImage = useCallback(
+    (format: DownloadImageFormat) => {
+      if (format === 'svg') {
+        void downloadSvg();
+        return;
+      }
+      void downloadRasterImage(format);
+    },
+    [downloadRasterImage, downloadSvg]
+  );
+
+  const copyToClipboard = useCallback(async (value: string): Promise<boolean> => {
+    if (typeof window === 'undefined') return false;
+
+    if (window.navigator.clipboard?.writeText) {
+      try {
+        await window.navigator.clipboard.writeText(value);
+        return true;
+      } catch {
+        // Fallback to document.execCommand below.
+      }
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+
+    try {
+      return document.execCommand('copy');
+    } catch {
+      return false;
+    } finally {
+      document.body.removeChild(textarea);
+    }
+  }, []);
+
+  const buildShareUrl = useCallback(() => {
+    if (!repoData || typeof window === 'undefined') return null;
+    const normalizedTitle =
+      config.text.customTitle.trim() === repoData.name.trim() ? '' : config.text.customTitle;
+    const normalizedDescriptionInput = config.text.customDescription.trim();
+    const normalizedDescription =
+      normalizedDescriptionInput === (repoData.description?.trim() ?? '') ||
+      normalizedDescriptionInput === messages.app.noDescription.trim()
+        ? ''
+        : config.text.customDescription;
+
+    const shareConfig: CardConfig = {
+      ...config,
+      text: {
+        ...config.text,
+        customTitle: normalizedTitle,
+        customDescription: normalizedDescription,
+      },
+    };
+
+    const sharePath = buildShareImagePath(repoData.owner, repoData.name, shareConfig, locale);
+    return new URL(sharePath, window.location.origin).toString();
+  }, [config, locale, messages.app.noDescription, repoData]);
+
+  const copyShareSnippet = useCallback(
+    async (format: 'url' | 'markdown' | 'img' | 'og') => {
+      const shareUrl = buildShareUrl();
+      if (!shareUrl || !repoData) return;
+
+      const repoLabel = `${repoData.owner}/${repoData.name}`;
+      const snippet =
+        format === 'url'
+          ? shareUrl
+          : format === 'markdown'
+            ? `![${repoLabel}](${shareUrl})`
+            : format === 'img'
+              ? `<img src="${shareUrl}" alt="${repoLabel}" width="${EXPORT_WIDTH}" height="${EXPORT_HEIGHT}" />`
+              : [
+                  `<meta property="og:image" content="${shareUrl}" />`,
+                  `<meta property="og:image:width" content="${EXPORT_WIDTH}" />`,
+                  `<meta property="og:image:height" content="${EXPORT_HEIGHT}" />`,
+                ].join('\n');
+
+      const copied = await copyToClipboard(snippet);
+      if (!copied) {
+        setError(messages.app.failedCopy);
+        return;
+      }
+
+      setError(null);
+      setShareMessage(
+        format === 'url'
+          ? messages.app.copiedUrl
+          : format === 'markdown'
+            ? messages.app.copiedMarkdown
+            : format === 'img'
+              ? messages.app.copiedImgTag
+              : messages.app.copiedOgTags
+      );
+    },
+    [
+      buildShareUrl,
+      copyToClipboard,
+      messages.app.copiedImgTag,
+      messages.app.copiedMarkdown,
+      messages.app.copiedOgTags,
+      messages.app.copiedUrl,
+      messages.app.failedCopy,
+      repoData,
+    ]
+  );
+
+  const copyShareUrl = useCallback(() => {
+    void copyShareSnippet('url');
+  }, [copyShareSnippet]);
+
+  const copyMarkdownSnippet = useCallback(() => {
+    void copyShareSnippet('markdown');
+  }, [copyShareSnippet]);
+
+  const copyImgTagSnippet = useCallback(() => {
+    void copyShareSnippet('img');
+  }, [copyShareSnippet]);
+
+  const copyOgTagsSnippet = useCallback(() => {
+    void copyShareSnippet('og');
+  }, [copyShareSnippet]);
+
   return (
     <I18nProvider locale={locale} setLocale={setLocale}>
       <div
@@ -322,6 +530,13 @@ export default function App() {
             github.com/ZyphrZero/repo-cardify
           </span>
         </a>
+        {shareMessage && (
+          <div className="pointer-events-none fixed left-1/2 top-4 z-[70] -translate-x-1/2" role="status" aria-live="polite">
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 shadow-lg">
+              {shareMessage}
+            </div>
+          </div>
+        )}
 
         <header className="relative z-20 app-surface border-b app-border backdrop-blur-md">
           <div className="mx-auto flex w-full max-w-[1360px] items-center justify-between gap-4 px-4 py-4 lg:px-8">
@@ -370,8 +585,8 @@ export default function App() {
           </div>
         </header>
 
-        <main className="relative z-10 mx-auto flex w-full max-w-[1360px] flex-1 flex-col gap-5 px-4 py-5 lg:px-8 lg:py-6 xl:grid xl:grid-cols-[minmax(0,1fr)_390px]">
-          <section className="flex min-h-[calc(100vh-150px)] flex-col overflow-hidden rounded-2xl app-card shadow-sm">
+        <main className="relative z-10 mx-auto flex w-full max-w-[1360px] flex-1 flex-col gap-5 px-4 py-5 lg:px-8 lg:py-6 xl:grid xl:grid-cols-[minmax(0,1fr)_390px] xl:items-start">
+          <section className="flex min-h-[calc(100vh-150px)] flex-col overflow-visible rounded-2xl app-card shadow-sm">
             <div className="px-5 py-5 md:px-6">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -440,40 +655,94 @@ export default function App() {
             </div>
 
             {repoData && (
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t app-border app-surface-muted px-5 py-4 md:px-6">
-                <p className="text-xs text-zinc-500">{messages.app.readyToExportHint}</p>
-                <div className="flex items-center gap-2">
+              <div className="relative z-20 flex flex-wrap items-center justify-between gap-3 rounded-b-2xl border-t app-border app-surface-muted px-5 py-4 md:px-6">
+                <div className="flex flex-col gap-1">
+                  <p className="text-xs text-zinc-500">{messages.app.readyToExportHint}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative z-30" ref={downloadMenuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setDownloadMenuOpen((prev) => !prev)}
+                      className="flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-zinc-700"
+                    >
+                      <Download className="h-4 w-4" />
+                      {messages.app.download}
+                      <ChevronDown className={`h-4 w-4 transition-transform ${isDownloadMenuOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isDownloadMenuOpen && (
+                      <div className="absolute bottom-full right-0 z-50 mb-2 w-36 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg">
+                        <button
+                          type="button"
+                          onClick={() => downloadImage('svg')}
+                          className="block w-full px-3 py-2 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                        >
+                          {messages.app.downloadSvg}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => downloadImage('png')}
+                          className="block w-full px-3 py-2 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                        >
+                          {messages.app.downloadPng}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => downloadImage('jpg')}
+                          className="block w-full px-3 py-2 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                        >
+                          {messages.app.downloadJpg}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => downloadImage('webp')}
+                          className="block w-full px-3 py-2 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                        >
+                          {messages.app.downloadWebp}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <span className="mx-1 hidden h-6 w-px bg-zinc-200 lg:block" />
                   <button
                     type="button"
-                    onClick={downloadSvg}
-                    className="flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-zinc-700"
+                    onClick={copyShareUrl}
+                    className="flex items-center gap-2 rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm font-semibold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50"
                   >
-                    <Download className="h-4 w-4" />
-                    {messages.app.downloadSvg}
+                    <Link2 className="h-4 w-4" />
+                    {messages.app.copyUrl}
                   </button>
                   <button
                     type="button"
-                    onClick={downloadPng}
-                    className="flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-zinc-700"
+                    onClick={copyMarkdownSnippet}
+                    className="flex items-center gap-2 rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm font-semibold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50"
                   >
-                    <Download className="h-4 w-4" />
-                    {messages.app.downloadPng}
+                    <Code2 className="h-4 w-4" />
+                    {messages.app.copyMarkdown}
                   </button>
                   <button
                     type="button"
-                    onClick={downloadJpg}
-                    className="flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-zinc-700"
+                    onClick={copyImgTagSnippet}
+                    className="flex items-center gap-2 rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm font-semibold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50"
                   >
-                    <Download className="h-4 w-4" />
-                    {messages.app.downloadJpg}
+                    <Code2 className="h-4 w-4" />
+                    {messages.app.copyImgTag}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={copyOgTagsSnippet}
+                    className="flex items-center gap-2 rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm font-semibold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50"
+                  >
+                    <Code2 className="h-4 w-4" />
+                    {messages.app.copyOgTags}
                   </button>
                 </div>
               </div>
             )}
           </section>
 
-          <aside className="overflow-hidden rounded-2xl app-card shadow-sm xl:min-h-[calc(100vh-150px)]">
-            <div className="flex h-full flex-col">
+          <aside className="overflow-hidden rounded-2xl app-card shadow-sm xl:h-[calc(100vh-150px)] xl:self-start">
+            <div className="flex h-full min-h-0 flex-col">
               <div className="flex items-center justify-between border-b app-border app-surface px-5 py-4">
                 <div className="flex items-center gap-2 text-sm font-semibold tracking-wide text-zinc-700">
                   <Layers className="h-4 w-4" />
@@ -484,7 +753,7 @@ export default function App() {
                 </span>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-4 py-4 md:px-5">
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 md:px-5">
                 <ControlPanel
                   config={config}
                   setConfig={setConfig}

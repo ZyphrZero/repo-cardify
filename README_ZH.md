@@ -2,7 +2,7 @@
 
 <p align="center">
   <strong>几分钟内生成高质量 GitHub 社交卡片。</strong><br />
-  获取仓库信息，在可视化画布中编辑每个区块，并导出 SVG / PNG / JPG。
+  获取仓库信息，在可视化画布中编辑每个区块，并导出 SVG / PNG / JPG / WEBP。
 </p>
 
 <p align="center">
@@ -29,7 +29,7 @@ Repo Cardify 是一个基于 Next.js App Router 的仓库卡片生成工具。
 | 可视化卡片编辑 | 头像、标题、描述、统计、徽章区块可拖拽和缩放，带吸附参考线。 |
 | 丰富样式配置 | 4 种主题、6 种字体、10 种图案叠加、颜色配置，以及区块级弹层配置。 |
 | 统计与语言徽章 | 可配置 Stars/Forks/Issues，语言徽章使用 GitHub API 返回的前 3 个语言。 |
-| 高质量导出 | 支持 SVG、PNG、JPG；SVG 导出会嵌入字体并内联头像数据，提升可移植性。 |
+| 高质量导出 | 支持 SVG、PNG、JPG、WEBP，并通过统一下载菜单导出；SVG 导出会嵌入字体并内联头像数据，提升可移植性。 |
 | 预设工作流 | 支持 JSON 预设导入导出，运行时在 `services/presetService.ts` 做数据校验与清洗。 |
 | 内置国际化 | UI 支持英文和简体中文（`i18n.ts`）。 |
 | 界面主题模式 | 支持 `system`、`light`、`dark`，并持久化本地设置。 |
@@ -61,6 +61,7 @@ GITHUB_TOKEN=your_github_token
 | 变量名 | 必填 | 用途 |
 | --- | --- | --- |
 | `GITHUB_TOKEN` | 否 | 提升 GitHub API 请求配额，并支持通过服务端路由访问鉴权仓库。 |
+| `LOGO_STORAGE_DIR` | 否 | 上传自定义 Logo 的文件系统存储目录。默认：`<project>/.repo-cardify/logos`。 |
 
 ## 使用说明
 
@@ -68,7 +69,31 @@ GITHUB_TOKEN=your_github_token
 2. 在右侧主面板调整全局样式（`Theme`、`Typography`、`Pattern`）。
 3. 点击画布中的可编辑区块，打开区块级配置（`Avatar`、`Title`、`Description`、`Stats`、`Badges`）。
 4. 可按需导出当前配置为 JSON 预设，或导入已有预设。
-5. 将成品导出为 `SVG`、`PNG` 或 `JPG`。
+5. 点击统一的 `下载` 按钮，选择 `SVG`、`PNG`、`JPG` 或 `WEBP` 导出。
+6. 在导出区点击 `复制 URL`、`复制 Markdown`、`复制 <img />`、`复制 OG 标签`，即可直接嵌入 README 或网站页面。
+
+## README 直接引用
+
+获取仓库并完成样式调整后：
+
+1. 在导出栏点击任一复制按钮。
+2. 将结果直接粘贴到目标仓库 README。
+
+生成图片链接格式：
+
+```text
+https://<你的域名>/<owner>/<repo>/image?c=<compactConfig>&l=<en|zh-CN>
+```
+
+手动示例：
+
+```markdown
+![owner/repo](https://your-domain/owner/repo/image?c=...)
+```
+
+```html
+<img src="https://your-domain/owner/repo/image?c=..." alt="owner/repo" width="1200" height="630" />
+```
 
 ## 脚本命令
 
@@ -83,11 +108,15 @@ GITHUB_TOKEN=your_github_token
 
 ```text
 app/
+  [owner]/[name]/image/route.ts # 可供 README 直接引用的图片路由
+  api/logo/route.ts         # 自定义 Logo 上传接口
+  api/logo/[logoId]/route.ts # Logo 文件访问接口
   api/github/route.ts       # GitHub 代理与错误映射
   globals.css               # 全局样式与深浅色 UI 主题
   layout.tsx                # 根布局、字体链接、Tailwind CDN
   page.tsx                  # Next.js 页面入口
 components/
+  CardSvg.tsx               # 共享 SVG 渲染（前端预览 + 服务端图片路由）
   CardPreview.tsx           # SVG 渲染主流程
   EditorCanvas.tsx          # 可交互拖拽/缩放编辑层
   ControlPanel.tsx          # 主样式面板与预设导入导出
@@ -95,6 +124,7 @@ components/
 services/
   githubService.ts          # 客户端请求与头像 base64 规范化
   presetService.ts          # 预设清洗、导入、导出
+  shareImageService.ts      # 分享链接配置编码/解码
   exportFontService.ts      # SVG 导出字体嵌入
 App.tsx                     # 应用主流程
 i18n.ts                     # 国际化文案与工具函数
@@ -124,6 +154,21 @@ types.ts                    # 共享类型与默认配置
   "avatarUrl": "string"
 }
 ```
+
+### `GET /:owner/:repo/image?c=<compactConfig>&l=<en|zh-CN>`
+
+返回 `image/svg+xml`，可直接用于 Markdown 或 HTML `img` 标签。
+同时支持 socialify 风格的显式参数：`language`、`owner`、`name`、`stargazers`、`forks`、`issues`、`theme`。
+`c` 参数由页面中的复制按钮自动生成，用于完整保留布局与样式状态。
+
+### `POST /api/logo`
+
+通过 multipart 表单（字段名 `file`）上传自定义 Logo。
+返回短 `logoId` 与可分享 URL（`/api/logo/<logoId>`）。
+
+### `GET /api/logo/:logoId`
+
+返回已存储 Logo 的二进制内容，供渲染和分享使用。
 
 ## 验证清单
 
